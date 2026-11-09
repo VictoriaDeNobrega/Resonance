@@ -1,4 +1,4 @@
-# Resonance 🎵
+# Resonance
 
 > Plataforma de streaming de música colaborativa con salas sincronizadas en tiempo real (Jam), comunidades por géneros y listas de reproducción compartidas.
 
@@ -7,7 +7,7 @@
 
 ---
 
-## 🛠️ Stack Tecnológico
+## Stack Tecnológico
 
 - **Backend:** C# (.NET 8 Web API) + SignalR (WebSockets de baja latencia < 200 ms).
 - **Frontend:** React 18 (Vite) + Lucide Icons + SignalR Client.
@@ -16,7 +16,7 @@
 
 ---
 
-## 📁 Estructura del Proyecto
+## Estructura del Proyecto
 
 ```text
 Resonance/
@@ -39,7 +39,7 @@ Resonance/
 
 ---
 
-## 🚀 Cómo Ejecutar el Proyecto Localmente
+## Cómo Ejecutar el Proyecto Localmente
 
 ### 1. Levantar la Base de Datos (PostgreSQL)
 Con Docker instalado y abierto:
@@ -49,17 +49,42 @@ docker compose up -d
 Esto creará un contenedor con PostgreSQL escuchando en el puerto `5432`.
 
 ### 2. Ejecutar el Backend (C# .NET 8)
+Asegúrate de tener instalado el SDK de .NET 8:
 ```bash
 cd backend/Resonance.Api
 dotnet restore
 dotnet run
 ```
-La API estará corriendo en `http://localhost:5000` (Swagger en `http://localhost:5000/swagger`).
+La API estará corriendo en `http://localhost:5000` (con Swagger disponible en `http://localhost:5000/swagger`).
 
 ### 3. Ejecutar el Frontend (React)
+Asegúrate de tener instalado Node.js (v18+):
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
 La aplicación web abrirá en `http://localhost:5173`.
+
+---
+
+## Mapeo de Carpetas por Integrante
+
+Para evitar conflictos de Git al trabajar en paralelo:
+
+| Integrante | Módulo Asignado | Carpeta en Frontend | Archivos en Backend |
+| :--- | :--- | :--- | :--- |
+| **Sebastián Pérez** | **Salas de Música (Jam)** | `src/features/rooms/` | `RoomsController.cs`, `RoomHub.cs`, `RoomService.cs` |
+| **Luis Guerrero** | **Perfiles / Auth** | `src/features/auth/` | `AuthController.cs`, `AuthService.cs` |
+| **Gabriel Castro** | **Canciones / Reproductor**| `src/features/songs/` | `SongsController.cs`, `SongService.cs` |
+| **Victoria De Nóbrega** | **Comunidades** | `src/features/communities/`| `CommunitiesController.cs`, `CommunityService.cs` |
+| **Jesús Medina** | **Playlists / Admin** | `src/features/playlists/` | `PlaylistsController.cs`, `PlaylistService.cs` |
+
+---
+
+## Reglas de Git para el Equipo
+
+1. **Nadie commitea directo a `main`**.
+2. Cada desarrollador crea su rama por cada historia de usuario:  
+   `git checkout -b feature/nombre-de-la-historia`
+3. Al terminar la historia, se abre un Pull Request hacia `main` o `dev`.
