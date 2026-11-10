@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Radio, Plus, ArrowRight, Disc, Users, ShieldCheck, UserRound, LogIn, LogOut } from 'lucide-react';
 import CreateRoomModal from '../features/rooms/pages/CreateRoomModal';
+import { CreatePlaylistForm } from '../features/playlists/CreatePlaylistForm';
+import { SongSearch } from '../features/songs/SongSearch';
+import { HomeSongs } from '../features/songs/HomeSongs';
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -159,6 +162,29 @@ export default function HomePage() {
         onClose={() => setIsModalOpen(false)}
         onRoomCreated={handleRoomCreated}
       />
+    </div>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <div className="main-layout" style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
+      <h2>Plataforma Resonance</h2>
+      
+      {/* Sección de Canciones en Tendencia */}
+      <section style={{ marginBottom: '30px' }}>
+        <HomeSongs />
+      </section>
+
+      {/* Sección de Búsqueda de Canciones */}
+      <section style={{ marginBottom: '30px' }}>
+        <SongSearch />
+      </section>
+
+      {/* Sección de Creación de Playlists */}
+      <section style={{ marginBottom: '30px' }}>
+        <CreatePlaylistForm />
+      </section>
     </div>
   );
 }
