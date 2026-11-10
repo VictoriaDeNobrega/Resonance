@@ -21,12 +21,4 @@ namespace Resonance.DTOs
         string CoverImageUrl,
         int PlayCount
     );
-
-    public record PagedResultDto<T>(
-        IEnumerable<T> Items,
-        int TotalItems,
-        int Page,
-        int PageSize,
-        int TotalPages
-    );
 }
