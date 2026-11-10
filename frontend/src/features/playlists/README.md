@@ -1,5 +1,5 @@
 # Módulo de Playlists y Administración
-**Encargado:** Jesús Medina  
+**Encargado:** Victoria De Nóbrega  
 **Historias de Usuario:**
 - Crear playlist personal, asignarle nombre y foto de portada.
 - Añadir, modificar y eliminar canciones de la playlist.
