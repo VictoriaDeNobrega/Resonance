@@ -9,9 +9,3 @@ public class Playlist
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
-
-namespace Resonance.Models
-{
-    // Alias de compatibilidad hacia atrás
-    public class Playlist : Resonance.Api.Models.Playlist {}
-}

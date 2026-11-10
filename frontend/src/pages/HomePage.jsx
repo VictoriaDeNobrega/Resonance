@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Radio, Plus, ArrowRight, Disc, Users, ShieldCheck, UserRound, LogIn, LogOut } from 'lucide-react';
+import { Radio, Plus, ArrowRight, Disc, Users, ShieldCheck, UserRound, LogIn, LogOut, HardDrive, Settings, Music } from 'lucide-react';
 import CreateRoomModal from '../features/rooms/pages/CreateRoomModal';
+import ServerConfigModal from '../components/ServerConfigModal';
 import { CreatePlaylistForm } from '../features/playlists/CreatePlaylistForm';
 import { SongSearch } from '../features/songs/SongSearch';
 import { HomeSongs } from '../features/songs/HomeSongs';
@@ -9,6 +10,7 @@ import { HomeSongs } from '../features/songs/HomeSongs';
 export default function HomePage() {
   const navigate = useNavigate();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isServerModalOpen, setIsServerModalOpen] = useState(false);
   const [joinCode, setJoinCode] = useState('');
   const [username, setUsername] = useState(() => localStorage.getItem('resonance_user') || 'Usuario_' + Math.floor(Math.random() * 100));
   const [user, setUser] = useState(() => {
@@ -63,10 +65,32 @@ export default function HomePage() {
         )}
       </div>
 
-      {/* Hero Section */}
-      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)', padding: '6px 14px', borderRadius: '20px', fontSize: '0.875rem', marginBottom: '24px' }}>
-        <Radio size={16} color="var(--accent)" />
-        <span>Resonance Jam — Sincronización en Tiempo Real</span>
+      {/* Hero Section y Badge de Servidor */}
+      <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '24px' }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)', padding: '6px 14px', borderRadius: '20px', fontSize: '0.875rem' }}>
+          <Radio size={16} color="var(--accent)" />
+          <span>Resonance Jam — Sincronización en Tiempo Real</span>
+        </div>
+
+        <button
+          onClick={() => setIsServerModalOpen(true)}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            backgroundColor: 'rgba(139, 92, 246, 0.15)',
+            border: '1px solid var(--accent)',
+            color: 'var(--text-main)',
+            padding: '6px 14px',
+            borderRadius: '20px',
+            fontSize: '0.85rem',
+            cursor: 'pointer'
+          }}
+        >
+          <HardDrive size={14} color="var(--accent)" />
+          <span>Música y Configuración Servidor</span>
+          <Settings size={13} style={{ opacity: 0.7 }} />
+        </button>
       </div>
 
       <h1 style={{ fontSize: '3rem', fontWeight: 800, lineHeight: 1.15, marginBottom: '16px', background: 'linear-gradient(135deg, #ffffff 40%, var(--accent) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
@@ -103,7 +127,7 @@ export default function HomePage() {
         />
       </div>
 
-      {/* Acciones para Salas Jam */}
+      {/* Acciones Principales */}
       <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', flexWrap: 'wrap', marginBottom: '60px' }}>
         <button
           onClick={() => setIsModalOpen(true)}
@@ -111,6 +135,14 @@ export default function HomePage() {
           style={{ padding: '14px 28px', fontSize: '1rem' }}
         >
           <Plus size={20} /> Crear Nueva Sala Jam
+        </button>
+
+        <button
+          onClick={() => navigate('/communities')}
+          className="btn-secondary"
+          style={{ padding: '14px 24px', fontSize: '1rem', border: '1px solid var(--accent)' }}
+        >
+          <Users size={20} color="var(--accent)" /> Comunidades Musicales
         </button>
 
         <form onSubmit={handleJoinByCode} style={{ display: 'flex', gap: '8px' }}>
@@ -162,7 +194,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Módulos de Canciones y Playlists (Primer Sprint) */}
+      {/* Módulos de Canciones y Playlists */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '40px', textAlign: 'left' }}>
         <section>
           <HomeSongs />
@@ -177,11 +209,16 @@ export default function HomePage() {
         </section>
       </div>
 
-      {/* Modal para Crear Sala Jam */}
+      {/* Modales */}
       <CreateRoomModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onRoomCreated={handleRoomCreated}
+      />
+
+      <ServerConfigModal
+        isOpen={isServerModalOpen}
+        onClose={() => setIsServerModalOpen(false)}
       />
     </div>
   );

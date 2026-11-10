@@ -13,9 +13,3 @@ public class Song
     public int PlayCount { get; set; } = 0;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
-
-namespace Resonance.Models
-{
-    // Alias de compatibilidad hacia atrás
-    public class Song : Resonance.Api.Models.Song {}
-}

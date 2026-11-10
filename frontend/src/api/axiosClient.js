@@ -1,10 +1,12 @@
-const BASE_URL = 'http://localhost:5000/api';
+import { getServerUrl } from '../config/serverConfig';
 
 /**
  * Cliente HTTP estándar compatible con peticiones directas estilo fetch
  */
 export async function apiRequest(endpoint, options = {}) {
-  const url = `${BASE_URL}${endpoint}`;
+  const baseUrl = `${getServerUrl()}/api`;
+  const url = `${baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+
   const storedUser = localStorage.getItem('user');
   let userIdHeader = {};
   if (storedUser) {

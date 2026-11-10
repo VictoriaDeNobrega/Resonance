@@ -1,11 +1,30 @@
 import React, { useState } from 'react';
 import { ListMusic, Plus, Music } from 'lucide-react';
+import { LOCAL_TRACKS } from '../../songs/data/localTracks';
+import { resolveAudioUrl } from '../../../config/serverConfig';
 
 export default function QueueList({ queue, onAddToQueue }) {
   const [showAddForm, setShowAddForm] = useState(false);
+  const [selectedLocalTrack, setSelectedLocalTrack] = useState('');
   const [title, setTitle] = useState('');
   const [artist, setArtist] = useState('');
   const [url, setUrl] = useState('');
+
+  const handleSelectLocalTrack = (trackId) => {
+    setSelectedLocalTrack(trackId);
+    if (!trackId) {
+      setTitle('');
+      setArtist('');
+      setUrl('');
+      return;
+    }
+    const found = LOCAL_TRACKS.find((t) => t.id === trackId);
+    if (found) {
+      setTitle(found.title);
+      setArtist(found.artist);
+      setUrl(resolveAudioUrl(found.url));
+    }
+  };
 
   const handleAddSong = (e) => {
     e.preventDefault();
@@ -15,14 +34,15 @@ export default function QueueList({ queue, onAddToQueue }) {
       songId: 'song_' + Date.now(),
       title: title.trim(),
       artist: artist.trim() || 'Artista Desconocido',
-      url: url.trim(),
-      durationSeconds: 180,
+      url: resolveAudioUrl(url.trim()),
+      durationSeconds: 210,
       addedBy: 'Tú'
     });
 
     setTitle('');
     setArtist('');
     setUrl('');
+    setSelectedLocalTrack('');
     setShowAddForm(false);
   };
 
@@ -43,7 +63,33 @@ export default function QueueList({ queue, onAddToQueue }) {
       </div>
 
       {showAddForm && (
-        <form onSubmit={handleAddSong} style={{ padding: '10px 0', borderBottom: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+        <form onSubmit={handleAddSong} style={{ padding: '10px 0', borderBottom: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '4px' }}>
+              Elegir de la carpeta local de música:
+            </label>
+            <select
+              value={selectedLocalTrack}
+              onChange={(e) => handleSelectLocalTrack(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '6px 10px',
+                borderRadius: '6px',
+                backgroundColor: 'var(--bg-secondary)',
+                border: '1px solid var(--border)',
+                color: 'white',
+                fontSize: '0.8rem'
+              }}
+            >
+              <option value="">-- O escribir canción personalizada --</option>
+              {LOCAL_TRACKS.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.title} - {t.artist}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <input
             type="text"
             placeholder="Título de la canción"
@@ -60,8 +106,8 @@ export default function QueueList({ queue, onAddToQueue }) {
             style={{ padding: '6px 10px', borderRadius: '6px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'white', fontSize: '0.8rem' }}
           />
           <input
-            type="url"
-            placeholder="URL del audio (MP3 o stream)"
+            type="text"
+            placeholder="URL del audio (MP3 o ruta local)"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             required

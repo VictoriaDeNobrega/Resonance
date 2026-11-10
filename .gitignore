@@ -24,3 +24,9 @@ yarn-error.log*
 *.swp
 .DS_Store
 Thumbs.db
+
+# Audio files & Downloaded music
+*.mp3
+*.wav
+*.flac
+SpotiDownloader.com*/
