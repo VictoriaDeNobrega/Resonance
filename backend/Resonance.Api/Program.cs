@@ -28,6 +28,9 @@ builder.Services.AddCors(options =>
     });
 });
 
+// Registro utilizando la interfaz IPlaylistService
+builder.Services.AddScoped<IPlaylistService, PlaylistService>();
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
