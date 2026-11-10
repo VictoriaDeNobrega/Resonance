@@ -1,0 +1,31 @@
+// Models/Playlist.cs
+namespace Resonance.Models
+{
+    public class Playlist
+    {
+        public Guid Id { get; set; } = Guid.NewGuid();
+        public string UserId { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string CoverImageUrl { get; set; } = string.Empty;
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    }
+}
+
+// Models/Song.cs
+namespace Resonance.Models
+{
+    public class Song
+    {
+        public Guid Id { get; set; } = Guid.NewGuid();
+        public string Title { get; set; } = string.Empty;
+        public string Artist { get; set; } = string.Empty;
+        public string Album { get; set; } = string.Empty;
+        public string Genre { get; set; } = string.Empty;
+        public int DurationInSeconds { get; set; }
+        public string AudioUrl { get; set; } = string.Empty;
+        public string CoverImageUrl { get; set; } = string.Empty;
+        public int PlayCount { get; set; } = 0;
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    }
+}
