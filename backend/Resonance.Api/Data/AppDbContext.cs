@@ -10,6 +10,8 @@ public class AppDbContext : DbContext
     public DbSet<Room> Rooms => Set<Room>();
     public DbSet<RoomSong> RoomSongs => Set<RoomSong>();
     public DbSet<User> Users => Set<User>();
+    public DbSet<Playlist> Playlists => Set<Playlist>();
+    public DbSet<Song> Songs => Set<Song>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -34,6 +36,20 @@ public class AppDbContext : DbContext
             entity.HasIndex(u => u.Email).IsUnique();
             entity.Property(u => u.Email).IsRequired().HasMaxLength(150);
             entity.Property(u => u.Name).IsRequired().HasMaxLength(100);
+        });
+
+        modelBuilder.Entity<Playlist>(entity =>
+        {
+            entity.HasKey(p => p.Id);
+            entity.Property(p => p.Name).IsRequired().HasMaxLength(60);
+            entity.Property(p => p.UserId).IsRequired();
+        });
+
+        modelBuilder.Entity<Song>(entity =>
+        {
+            entity.HasKey(s => s.Id);
+            entity.Property(s => s.Title).IsRequired().HasMaxLength(100);
+            entity.Property(s => s.Artist).IsRequired().HasMaxLength(100);
         });
     }
 }
