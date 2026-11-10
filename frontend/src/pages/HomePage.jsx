@@ -70,6 +70,14 @@ export default function HomePage() {
           <Plus size={20} /> Crear Nueva Sala Jam
         </button>
 
+        <button
+          onClick={() => navigate('/communities')}
+          className="btn-secondary"
+          style={{ padding: '14px 24px', fontSize: '1rem', border: '1px solid var(--accent)' }}
+        >
+          <Users size={20} color="var(--accent)" /> Comunidades Musicales
+        </button>
+
         <form onSubmit={handleJoinByCode} style={{ display: 'flex', gap: '8px' }}>
           <input
             type="text"

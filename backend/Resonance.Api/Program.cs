@@ -12,6 +12,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 // 2. Registro de Servicios (Inyección de Dependencias)
 builder.Services.AddScoped<IRoomService, RoomService>();
+builder.Services.AddScoped<ICommunityService, CommunityService>();
 
 // 3. WebSockets en tiempo real con SignalR
 builder.Services.AddSignalR();

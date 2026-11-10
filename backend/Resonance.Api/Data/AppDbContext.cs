@@ -10,10 +10,35 @@ public class AppDbContext : DbContext
     public DbSet<Room> Rooms => Set<Room>();
     public DbSet<RoomSong> RoomSongs => Set<RoomSong>();
     public DbSet<User> Users => Set<User>();
+    public DbSet<Community> Communities => Set<Community>();
+    public DbSet<CommunityPlaylist> CommunityPlaylists => Set<CommunityPlaylist>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<Community>(entity =>
+        {
+            entity.HasKey(c => c.Id);
+            entity.HasIndex(c => c.NormalizedName).IsUnique();
+            entity.Property(c => c.Name).IsRequired().HasMaxLength(100);
+            entity.Property(c => c.NormalizedName).IsRequired().HasMaxLength(100);
+            entity.Property(c => c.CategoryValue).IsRequired().HasMaxLength(100);
+            entity.Property(c => c.CreatorId).IsRequired().HasMaxLength(100);
+
+            entity.HasMany(c => c.Playlists)
+                  .WithOne(cp => cp.Community)
+                  .HasForeignKey(cp => cp.CommunityId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<CommunityPlaylist>(entity =>
+        {
+            entity.HasKey(cp => cp.Id);
+            entity.HasIndex(cp => new { cp.CommunityId, cp.PlaylistId }).IsUnique();
+            entity.Property(cp => cp.PlaylistId).IsRequired().HasMaxLength(100);
+            entity.Property(cp => cp.PlaylistTitle).IsRequired().HasMaxLength(150);
+        });
 
         modelBuilder.Entity<Room>(entity =>
         {
