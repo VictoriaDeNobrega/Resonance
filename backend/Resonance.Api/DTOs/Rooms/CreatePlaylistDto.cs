@@ -10,13 +10,3 @@ namespace Resonance.DTOs
 
     public record PlaylistResponseDto(Guid Id, string UserId, string Name, string CoverImageUrl, DateTime CreatedAt);
 }
-
-// DTOs/SongDtos.cs
-namespace Resonance.DTOs
-{
-    public record SongSearchFilterDto(string? Query, string? Genre, int Page = 1, int PageSize = 20);
-
-    public record SongResponseDto(Guid Id, string Title, string Artist, string Album, string Genre, int DurationInSeconds, string CoverImageUrl);
-
-    public record PagedResultDto<T>(IEnumerable<T> Items, int TotalItems, int Page, int PageSize);
-}
