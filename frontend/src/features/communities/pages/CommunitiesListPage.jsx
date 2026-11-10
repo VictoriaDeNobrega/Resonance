@@ -9,7 +9,7 @@ import {
   Mic2,
   Radio,
   Sparkles,
-  UserCheck
+  User
 } from 'lucide-react';
 import { communityApi } from '../services/communityApi';
 import CommunityCard from '../components/CommunityCard';
@@ -97,30 +97,26 @@ export default function CommunitiesListPage() {
           </span>
         </div>
 
-        {/* Simulador de Sesión de Usuario para probar roles */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem' }}>
-          <UserCheck size={16} color="var(--accent)" />
-          <span style={{ color: 'var(--text-muted)' }}>Sesión activa como:</span>
-          <select
-            value={currentUsername}
-            onChange={(e) => {
-              setCurrentUsername(e.target.value);
-              localStorage.setItem('resonance_user', e.target.value);
-            }}
+        {/* Nombre de usuario en la parte superior derecha */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.875rem' }}>
+          <div
             style={{
-              backgroundColor: 'var(--bg-card)',
-              color: 'var(--text-main)',
-              border: '1px solid var(--border)',
-              borderRadius: '6px',
-              padding: '4px 10px',
-              fontSize: '0.85rem',
-              fontWeight: 600
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              backgroundColor: 'rgba(139, 92, 246, 0.2)',
+              border: '1px solid var(--accent)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--accent)'
             }}
           >
-            <option value="Victoria_Dev">Victoria_Dev (Creadora de Indie Rock & Daft Punk)</option>
-            <option value="Gabriel_Castro">Gabriel_Castro (Creador de Synthwave)</option>
-            <option value="Invitado_Musical">Invitado_Musical (Rol Miembro / No Creador)</option>
-          </select>
+            <User size={16} />
+          </div>
+          <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>
+            {currentUsername}
+          </span>
         </div>
       </div>
 
