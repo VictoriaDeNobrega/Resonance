@@ -1,10 +1,10 @@
 import * as signalR from '@microsoft/signalr';
-
-const HUB_URL = 'http://localhost:5000/hubs/room';
+import { getServerUrl } from '../config/serverConfig';
 
 export function createRoomHubConnection() {
+  const hubUrl = `${getServerUrl()}/hubs/room`;
   const connection = new signalR.HubConnectionBuilder()
-    .withUrl(HUB_URL, {
+    .withUrl(hubUrl, {
       skipNegotiation: false,
       transport: signalR.HttpTransportType.WebSockets | signalR.HttpTransportType.LongPolling
     })

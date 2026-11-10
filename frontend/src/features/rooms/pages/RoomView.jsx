@@ -8,6 +8,7 @@ import { useRoomSync } from '../hooks/useRoomSync';
 import RoomChat from '../components/RoomChat';
 import QueueList from '../components/QueueList';
 import VoteSkipButton from '../components/VoteSkipButton';
+import { resolveAudioUrl } from '../../../config/serverConfig';
 
 export default function RoomView() {
   const { code } = useParams();
@@ -126,7 +127,7 @@ export default function RoomView() {
       {playbackState.songUrl && (
         <audio
           ref={audioRef}
-          src={playbackState.songUrl}
+          src={resolveAudioUrl(playbackState.songUrl)}
           onTimeUpdate={() => {
             if (isHost && audioRef.current) {
               const currentMs = Math.round(audioRef.current.currentTime * 1000);

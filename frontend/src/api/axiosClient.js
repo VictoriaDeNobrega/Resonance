@@ -1,7 +1,8 @@
-const BASE_URL = 'http://localhost:5000/api';
+import { getServerUrl } from '../config/serverConfig';
 
 export async function apiRequest(endpoint, options = {}) {
-  const url = `${BASE_URL}${endpoint}`;
+  const baseUrl = `${getServerUrl()}/api`;
+  const url = `${baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
   const headers = {
     'Content-Type': 'application/json',
     ...(options.headers || {})

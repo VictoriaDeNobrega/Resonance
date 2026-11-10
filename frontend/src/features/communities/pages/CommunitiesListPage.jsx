@@ -9,7 +9,8 @@ import {
   Mic2,
   Radio,
   Sparkles,
-  User
+  User,
+  Music
 } from 'lucide-react';
 import { communityApi } from '../services/communityApi';
 import CommunityCard from '../components/CommunityCard';
@@ -95,6 +96,21 @@ export default function CommunitiesListPage() {
           <span style={{ fontSize: '0.85rem', color: 'var(--text-main)', fontWeight: 600 }}>
             Comunidades Musicales
           </span>
+          <span style={{ color: 'var(--border)' }}>|</span>
+          <Link
+            to="/songs"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              color: 'var(--text-muted)',
+              textDecoration: 'none',
+              fontSize: '0.85rem'
+            }}
+          >
+            <Music size={14} color="var(--accent)" />
+            <span>Catálogo Local (11 MP3)</span>
+          </Link>
         </div>
 
         {/* Nombre de usuario en la parte superior derecha */}
