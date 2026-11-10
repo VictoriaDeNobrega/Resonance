@@ -1,0 +1,10 @@
+using Resonance.DTOs;
+
+namespace Resonance.Services
+{
+    public interface ISongService
+    {
+        Task<PagedResultDto<SongResponseDto>> SearchSongsAsync(SongSearchFilterDto filter);
+        Task<IEnumerable<SongResponseDto>> GetHomeSongsAsync(int limit = 10);
+    }
+}
