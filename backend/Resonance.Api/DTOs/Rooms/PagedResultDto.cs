@@ -1,4 +1,4 @@
-namespace Resonance.DTOs
+namespace Resonance.DTOs.Rooms
 {
     public record PagedResultDto<T>(
         IEnumerable<T> Items,
