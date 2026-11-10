@@ -30,8 +30,8 @@ Resonance/
 │       │   ├── rooms/        # [Sebastián] Salas de música Jam en tiempo real
 │       │   ├── auth/         # [Luis] Perfiles y autenticación
 │       │   ├── songs/        # [Gabriel] Catálogo y reproductor global
-│       │   ├── communities/  # [Victoria] Comunidades y comentarios
-│       │   └── playlists/    # [Jesús] Gestión de playlists
+│       │   ├── communities/  # [Jesús] Comunidades y comentarios
+│       │   └── playlists/    # [Victoria] Gestión de playlists
 │       └── routes/           # Enrutamiento React Router
 ├── docker-compose.yml        # Base de datos PostgreSQL lista para correr
 └── .gitignore                # Reglas de exclusión para C# y React
