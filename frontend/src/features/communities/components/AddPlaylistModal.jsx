@@ -6,6 +6,13 @@ import { communityApi } from '../services/communityApi';
 // para vincular fácilmente sin implementar la lógica interna de playlists de Jesús Medina
 const AVAILABLE_PLATFORM_PLAYLISTS = [
   {
+    playlistId: 'pl-calva-louise-abyss',
+    playlistTitle: 'Calva Louise - Edge of the Abyss (Álbum Completo)',
+    description: '11 pistas de Alternative Rock y Electronic Punk cargadas en tu carpeta local.',
+    coverUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=600&q=80',
+    songCount: 11
+  },
+  {
     playlistId: 'pl-synth-classics',
     playlistTitle: 'Synthwave & Cyberpunk Anthems',
     description: 'Los mejores temas de Kavinsky, Perturbator, Carpenter Brut y The Midnight.',
