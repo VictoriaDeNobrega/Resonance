@@ -32,7 +32,8 @@ export default function HomePage() {
   };
 
   return (
-    <div style={{ maxWidth: '1000px', margin: '60px auto', padding: '0 20px', textAlign: 'center' }}>
+    <div style={{ maxWidth: '1200px', margin: '40px auto', padding: '0 20px', textAlign: 'center' }}>
+      {/* Header de Autenticación de Usuario */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginBottom: '28px' }}>
         {user ? (
           <>
@@ -62,6 +63,7 @@ export default function HomePage() {
         )}
       </div>
 
+      {/* Hero Section */}
       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)', padding: '6px 14px', borderRadius: '20px', fontSize: '0.875rem', marginBottom: '24px' }}>
         <Radio size={16} color="var(--accent)" />
         <span>Resonance Jam — Sincronización en Tiempo Real</span>
@@ -75,6 +77,7 @@ export default function HomePage() {
         Crea salas privadas o públicas, comparte el enlace de invitación, vota para saltar canciones y chatea en vivo con latencia ultra baja.
       </p>
 
+      {/* Control de Nombre de Usuario */}
       <div style={{ maxWidth: '320px', margin: '0 auto 30px' }}>
         <label style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '6px', textAlign: 'left' }}>
           Tu Nombre de Usuario:
@@ -100,6 +103,7 @@ export default function HomePage() {
         />
       </div>
 
+      {/* Acciones para Salas Jam */}
       <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', flexWrap: 'wrap', marginBottom: '60px' }}>
         <button
           onClick={() => setIsModalOpen(true)}
@@ -131,12 +135,13 @@ export default function HomePage() {
         </form>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '20px', textAlign: 'left' }}>
+      {/* Tarjetas de Características */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '20px', textAlign: 'left', marginBottom: '60px' }}>
         <div className="card">
           <Disc size={28} color="var(--accent)" style={{ marginBottom: '12px' }} />
           <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '6px' }}>Desfase &lt; 200 ms</h3>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-            Sincronización milimétrica impulsada por WebSockets nativos con C# SignalR para que todos escuchen la misma nota al mismo tiempo.
+            Sincronización milimétrica impulsada por WebSockets nativos con C# SignalR para que todos escuchten la misma nota al mismo tiempo.
           </p>
         </div>
 
@@ -157,34 +162,27 @@ export default function HomePage() {
         </div>
       </div>
 
+      {/* Módulos de Canciones y Playlists (Primer Sprint) */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '40px', textAlign: 'left' }}>
+        <section>
+          <HomeSongs />
+        </section>
+
+        <section>
+          <SongSearch />
+        </section>
+
+        <section>
+          <CreatePlaylistForm />
+        </section>
+      </div>
+
+      {/* Modal para Crear Sala Jam */}
       <CreateRoomModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onRoomCreated={handleRoomCreated}
       />
-    </div>
-  );
-}
-
-export default function HomePage() {
-  return (
-    <div className="main-layout" style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
-      <h2>Plataforma Resonance</h2>
-      
-      {/* Sección de Canciones en Tendencia */}
-      <section style={{ marginBottom: '30px' }}>
-        <HomeSongs />
-      </section>
-
-      {/* Sección de Búsqueda de Canciones */}
-      <section style={{ marginBottom: '30px' }}>
-        <SongSearch />
-      </section>
-
-      {/* Sección de Creación de Playlists */}
-      <section style={{ marginBottom: '30px' }}>
-        <CreatePlaylistForm />
-      </section>
     </div>
   );
 }
