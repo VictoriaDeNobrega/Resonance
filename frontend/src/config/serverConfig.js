@@ -79,3 +79,4 @@ export function resolveAudioUrl(urlOrPath) {
   // Ruta local servida por Vite (desde /public/music/...)
   return urlOrPath.startsWith('/') ? urlOrPath : `/${urlOrPath}`;
 }
+
