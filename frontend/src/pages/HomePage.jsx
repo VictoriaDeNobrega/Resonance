@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Radio, Plus, ArrowRight, Disc, Users, ShieldCheck } from 'lucide-react';
+import { Radio, Plus, ArrowRight, Disc, Users, ShieldCheck, UserRound, LogIn, LogOut } from 'lucide-react';
 import CreateRoomModal from '../features/rooms/pages/CreateRoomModal';
 
 export default function HomePage() {
@@ -8,6 +8,13 @@ export default function HomePage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [joinCode, setJoinCode] = useState('');
   const [username, setUsername] = useState(() => localStorage.getItem('resonance_user') || 'Usuario_' + Math.floor(Math.random() * 100));
+  const [user, setUser] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('user') || 'null');
+    } catch {
+      return null;
+    }
+  });
 
   const handleJoinByCode = (e) => {
     e.preventDefault();
@@ -23,6 +30,35 @@ export default function HomePage() {
 
   return (
     <div style={{ maxWidth: '1000px', margin: '60px auto', padding: '0 20px', textAlign: 'center' }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginBottom: '28px' }}>
+        {user ? (
+          <>
+            <button className="btn-secondary" onClick={() => navigate('/profile')}>
+              <UserRound size={18} /> {user.name}
+            </button>
+            <button
+              className="btn-secondary"
+              onClick={() => {
+                localStorage.removeItem('user');
+                setUser(null);
+              }}
+              aria-label="Cerrar sesión"
+            >
+              <LogOut size={18} /> Salir
+            </button>
+          </>
+        ) : (
+          <>
+            <button className="btn-secondary" onClick={() => navigate('/login')}>
+              <LogIn size={18} /> Iniciar sesión
+            </button>
+            <button className="btn-primary" onClick={() => navigate('/register')}>
+              <UserRound size={18} /> Crear cuenta
+            </button>
+          </>
+        )}
+      </div>
+
       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)', padding: '6px 14px', borderRadius: '20px', fontSize: '0.875rem', marginBottom: '24px' }}>
         <Radio size={16} color="var(--accent)" />
         <span>Resonance Jam — Sincronización en Tiempo Real</span>
