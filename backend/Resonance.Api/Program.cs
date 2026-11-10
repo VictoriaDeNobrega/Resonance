@@ -3,6 +3,7 @@ using Resonance.Api.Data;
 using Resonance.Api.Hubs;
 using Resonance.Api.Services.Implementations;
 using Resonance.Api.Services.Interfaces;
+using Resonance.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 

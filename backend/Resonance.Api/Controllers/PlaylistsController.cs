@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Resonance.DTOs;
 using Resonance.Services;
 
-namespace Resonance.Controllers
+namespace Resonance.Api.Controllers;
 {
     [ApiController]
     [Route("api/[controller]")]
