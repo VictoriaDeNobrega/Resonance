@@ -1,0 +1,56 @@
+import React, { useState, useEffect } from 'react';
+import { axiosClient } from '../../api/axiosClient';
+
+export const HomeSongs = () => {
+  const [songs, setSongs] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadHomeContent = async () => {
+      try {
+        const response = await axiosClient.get('/songs/home', { params: { limit: 6 } });
+        setSongs(response.data || []);
+      } catch (err) {
+        console.error('Error cargando la vista Home:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadHomeContent();
+  }, []);
+
+  if (loading) return <p style={{ color: '#aaa' }}>Cargando tendencias del Home...</p>;
+
+  return (
+    <div className="feature-container" style={{ padding: '16px', backgroundColor: '#181818', borderRadius: '8px' }}>
+      <h3>Tendencias en Resonance</h3>
+      
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
+        gap: '16px',
+        marginTop: '12px'
+      }}>
+        {songs.map((song) => (
+          <div key={song.id} style={{
+            backgroundColor: '#242424',
+            padding: '12px',
+            borderRadius: '6px',
+            textAlign: 'center'
+          }}>
+            <img 
+              src={song.coverImageUrl || 'https://resonance.app/assets/default-cover.png'} 
+              alt={song.title} 
+              style={{ width: '100%', aspectRatio: '1', borderRadius: '4px', objectFit: 'cover' }}
+            />
+            <h5 style={{ margin: '8px 0 4px', fontSize: '0.9rem', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {song.title}
+            </h5>
+            <p style={{ margin: 0, fontSize: '0.75rem', color: '#aaa' }}>{song.artist}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
