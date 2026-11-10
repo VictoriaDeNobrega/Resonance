@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -13,6 +14,7 @@ public class AuthController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly PasswordHasher<User> _passwordHasher = new();
+    private static readonly ConcurrentDictionary<string, User> _inMemoryUsers = new(StringComparer.OrdinalIgnoreCase);
 
     public AuthController(AppDbContext context)
     {
@@ -25,24 +27,46 @@ public class AuthController : ControllerBase
         CancellationToken cancellationToken)
     {
         var email = model.Email.Trim().ToLowerInvariant();
-        if (await _context.Users.AnyAsync(
-                user => user.Email.ToLower() == email,
-                cancellationToken))
+
+        try
         {
-            return Conflict(new { message = "El correo ya está registrado." });
+            if (await _context.Users.AnyAsync(
+                    user => user.Email.ToLower() == email,
+                    cancellationToken))
+            {
+                return Conflict(new { message = "El correo ya está registrado." });
+            }
+
+            var user = new User
+            {
+                Name = model.Name.Trim(),
+                Email = email
+            };
+            user.PasswordHash = _passwordHasher.HashPassword(user, model.Password);
+
+            _context.Users.Add(user);
+            await _context.SaveChangesAsync(cancellationToken);
+
+            return Ok(new { message = "¡Usuario registrado correctamente!", email = user.Email });
         }
-
-        var user = new User
+        catch
         {
-            Name = model.Name.Trim(),
-            Email = email
-        };
-        user.PasswordHash = _passwordHasher.HashPassword(user, model.Password);
+            // Fallback en memoria si Postgres está apagado
+            if (_inMemoryUsers.ContainsKey(email))
+            {
+                return Conflict(new { message = "El correo ya está registrado." });
+            }
 
-        _context.Users.Add(user);
-        await _context.SaveChangesAsync(cancellationToken);
+            var user = new User
+            {
+                Name = model.Name.Trim(),
+                Email = email
+            };
+            user.PasswordHash = _passwordHasher.HashPassword(user, model.Password);
+            _inMemoryUsers[email] = user;
 
-        return Ok(new { message = "¡Usuario registrado correctamente!", email = user.Email });
+            return Ok(new { message = "¡Usuario registrado correctamente!", email = user.Email });
+        }
     }
 
     [HttpPost("login")]
@@ -51,24 +75,53 @@ public class AuthController : ControllerBase
         CancellationToken cancellationToken)
     {
         var email = model.Email.Trim().ToLowerInvariant();
-        var user = await _context.Users.FirstOrDefaultAsync(
-            candidate => candidate.Email.ToLower() == email,
-            cancellationToken);
 
-        if (user == null ||
-            _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, model.Password) ==
-            PasswordVerificationResult.Failed)
+        try
         {
-            return Unauthorized(new { message = "Correo o contraseña incorrectos." });
+            var user = await _context.Users.FirstOrDefaultAsync(
+                candidate => candidate.Email.ToLower() == email,
+                cancellationToken);
+
+            if (user != null)
+            {
+                if (_passwordHasher.VerifyHashedPassword(user, user.PasswordHash, model.Password) ==
+                    PasswordVerificationResult.Failed)
+                {
+                    return Unauthorized(new { message = "Correo o contraseña incorrectos." });
+                }
+
+                return Ok(new
+                {
+                    message = "¡Inicio de sesión exitoso!",
+                    userId = user.Id,
+                    name = user.Name,
+                    email = user.Email
+                });
+            }
+        }
+        catch
+        {
+            // Fallback en memoria
         }
 
-        return Ok(new
+        if (_inMemoryUsers.TryGetValue(email, out var memUser))
         {
-            message = "¡Inicio de sesión exitoso!",
-            userId = user.Id,
-            name = user.Name,
-            email = user.Email
-        });
+            if (_passwordHasher.VerifyHashedPassword(memUser, memUser.PasswordHash, model.Password) ==
+                PasswordVerificationResult.Failed)
+            {
+                return Unauthorized(new { message = "Correo o contraseña incorrectos." });
+            }
+
+            return Ok(new
+            {
+                message = "¡Inicio de sesión exitoso!",
+                userId = memUser.Id,
+                name = memUser.Name,
+                email = memUser.Email
+            });
+        }
+
+        return Unauthorized(new { message = "Correo o contraseña incorrectos." });
     }
 
     [HttpPut("update/{id:guid}")]
@@ -77,60 +130,78 @@ public class AuthController : ControllerBase
         [FromBody] UpdateUserDto model,
         CancellationToken cancellationToken)
     {
-        var user = await _context.Users.FirstOrDefaultAsync(
-            candidate => candidate.Id == id,
-            cancellationToken);
-        if (user == null)
+        try
         {
-            return NotFound(new { message = "Usuario no encontrado." });
+            var user = await _context.Users.FirstOrDefaultAsync(
+                candidate => candidate.Id == id,
+                cancellationToken);
+            if (user != null)
+            {
+                var hasName = model.Name is not null;
+                var hasEmail = model.Email is not null;
+                var hasNewPassword = model.NewPassword is not null;
+                if ((!hasName && !hasEmail && !hasNewPassword) ||
+                    (hasName && string.IsNullOrWhiteSpace(model.Name)) ||
+                    (hasEmail && string.IsNullOrWhiteSpace(model.Email)))
+                {
+                    return BadRequest(new { message = "Indica al menos un cambio válido." });
+                }
+
+                if (string.IsNullOrEmpty(model.CurrentPassword) ||
+                    _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, model.CurrentPassword) ==
+                    PasswordVerificationResult.Failed)
+                {
+                    return BadRequest(new { message = "La contraseña actual es incorrecta." });
+                }
+
+                if (hasEmail)
+                {
+                    var email = model.Email!.Trim().ToLowerInvariant();
+                    if (await _context.Users.AnyAsync(
+                            candidate => candidate.Id != id && candidate.Email.ToLower() == email,
+                            cancellationToken))
+                    {
+                        return Conflict(new { message = "El correo ya está registrado." });
+                    }
+
+                    user.Email = email;
+                }
+
+                if (hasName) user.Name = model.Name!.Trim();
+                if (hasNewPassword) user.PasswordHash = _passwordHasher.HashPassword(user, model.NewPassword!);
+
+                await _context.SaveChangesAsync(cancellationToken);
+                return Ok(new
+                {
+                    message = "¡Perfil actualizado con éxito!",
+                    name = user.Name,
+                    email = user.Email
+                });
+            }
+        }
+        catch
+        {
+            // Fallback en memoria
         }
 
-        var hasName = model.Name is not null;
-        var hasEmail = model.Email is not null;
-        var hasNewPassword = model.NewPassword is not null;
-        if ((!hasName && !hasEmail && !hasNewPassword) ||
-            (hasName && string.IsNullOrWhiteSpace(model.Name)) ||
-            (hasEmail && string.IsNullOrWhiteSpace(model.Email)))
-        {
-            return BadRequest(new { message = "Indica al menos un cambio válido." });
-        }
+        var inMem = _inMemoryUsers.Values.FirstOrDefault(u => u.Id == id);
+        if (inMem == null) return NotFound(new { message = "Usuario no encontrado." });
 
         if (string.IsNullOrEmpty(model.CurrentPassword) ||
-            _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, model.CurrentPassword) ==
+            _passwordHasher.VerifyHashedPassword(inMem, inMem.PasswordHash, model.CurrentPassword) ==
             PasswordVerificationResult.Failed)
         {
             return BadRequest(new { message = "La contraseña actual es incorrecta." });
         }
 
-        if (hasEmail)
-        {
-            var email = model.Email!.Trim().ToLowerInvariant();
-            if (await _context.Users.AnyAsync(
-                    candidate => candidate.Id != id && candidate.Email.ToLower() == email,
-                    cancellationToken))
-            {
-                return Conflict(new { message = "El correo ya está registrado." });
-            }
+        if (model.Name != null) inMem.Name = model.Name.Trim();
+        if (model.NewPassword != null) inMem.PasswordHash = _passwordHasher.HashPassword(inMem, model.NewPassword);
 
-            user.Email = email;
-        }
-
-        if (hasName)
-        {
-            user.Name = model.Name!.Trim();
-        }
-
-        if (hasNewPassword)
-        {
-            user.PasswordHash = _passwordHasher.HashPassword(user, model.NewPassword!);
-        }
-
-        await _context.SaveChangesAsync(cancellationToken);
         return Ok(new
         {
             message = "¡Perfil actualizado con éxito!",
-            name = user.Name,
-            email = user.Email
+            name = inMem.Name,
+            email = inMem.Email
         });
     }
 }

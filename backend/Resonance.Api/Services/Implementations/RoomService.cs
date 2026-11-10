@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Microsoft.EntityFrameworkCore;
 using Resonance.Api.Data;
 using Resonance.Api.DTOs.Rooms;
@@ -9,6 +10,7 @@ namespace Resonance.Api.Services.Implementations;
 public class RoomService : IRoomService
 {
     private readonly AppDbContext _context;
+    private static readonly ConcurrentDictionary<string, Room> _inMemoryRooms = new(StringComparer.OrdinalIgnoreCase);
 
     public RoomService(AppDbContext context)
     {
@@ -18,13 +20,9 @@ public class RoomService : IRoomService
     public async Task<RoomDto> CreateRoomAsync(CreateRoomDto dto)
     {
         var code = GenerateRoomCode();
-        while (await _context.Rooms.AnyAsync(r => r.Code == code))
-        {
-            code = GenerateRoomCode();
-        }
-
         var room = new Room
         {
+            Id = Guid.NewGuid(),
             Code = code,
             Title = dto.Title.Trim(),
             HostId = dto.HostName.Trim(),
@@ -32,82 +30,189 @@ public class RoomService : IRoomService
             CreatedAt = DateTime.UtcNow
         };
 
-        _context.Rooms.Add(room);
-        await _context.SaveChangesAsync();
+        try
+        {
+            _context.Rooms.Add(room);
+            await _context.SaveChangesAsync();
+        }
+        catch
+        {
+            // Fallback en memoria si PostgreSQL no está activo
+            _inMemoryRooms[code] = room;
+        }
 
         return MapToDto(room);
     }
 
     public async Task<RoomDto?> GetRoomByCodeAsync(string code)
     {
-        var room = await _context.Rooms
-            .Include(r => r.Queue.OrderBy(q => q.Order))
-            .FirstOrDefaultAsync(r => r.Code.ToUpper() == code.ToUpper() && r.IsActive);
+        try
+        {
+            var room = await _context.Rooms
+                .Include(r => r.Queue.OrderBy(q => q.Order))
+                .FirstOrDefaultAsync(r => r.Code.ToUpper() == code.ToUpper() && r.IsActive);
 
-        return room == null ? null : MapToDto(room);
+            if (room != null) return MapToDto(room);
+        }
+        catch
+        {
+            // Fallback a memoria
+        }
+
+        if (_inMemoryRooms.TryGetValue(code, out var memRoom) && memRoom.IsActive)
+        {
+            return MapToDto(memRoom);
+        }
+
+        return null;
     }
 
     public async Task<bool> CloseRoomAsync(string code, string hostId)
     {
-        var room = await _context.Rooms.FirstOrDefaultAsync(r => r.Code == code);
-        if (room == null) return false;
+        try
+        {
+            var room = await _context.Rooms.FirstOrDefaultAsync(r => r.Code == code);
+            if (room != null)
+            {
+                room.IsActive = false;
+                await _context.SaveChangesAsync();
+                return true;
+            }
+        }
+        catch
+        {
+            // Fallback a memoria
+        }
 
-        room.IsActive = false;
-        await _context.SaveChangesAsync();
-        return true;
+        if (_inMemoryRooms.TryGetValue(code, out var memRoom))
+        {
+            memRoom.IsActive = false;
+            return true;
+        }
+
+        return false;
     }
 
     public async Task<bool> AddSongToQueueAsync(string code, RoomSong song)
     {
-        var room = await _context.Rooms.Include(r => r.Queue).FirstOrDefaultAsync(r => r.Code == code);
-        if (room == null || !room.IsActive) return false;
-
-        song.RoomId = room.Id;
-        song.Order = room.Queue.Count + 1;
-        _context.RoomSongs.Add(song);
-
-        if (string.IsNullOrEmpty(room.CurrentSongUrl))
+        try
         {
-            room.CurrentSongId = song.SongId;
-            room.CurrentSongTitle = song.Title;
-            room.CurrentSongArtist = song.Artist;
-            room.CurrentSongUrl = song.Url;
-            room.CurrentTimeMs = 0;
-            room.IsPlaying = true;
+            var room = await _context.Rooms.Include(r => r.Queue).FirstOrDefaultAsync(r => r.Code == code);
+            if (room != null && room.IsActive)
+            {
+                song.RoomId = room.Id;
+                song.Order = room.Queue.Count + 1;
+                _context.RoomSongs.Add(song);
+
+                if (string.IsNullOrEmpty(room.CurrentSongUrl))
+                {
+                    room.CurrentSongId = song.SongId;
+                    room.CurrentSongTitle = song.Title;
+                    room.CurrentSongArtist = song.Artist;
+                    room.CurrentSongUrl = song.Url;
+                    room.CurrentTimeMs = 0;
+                    room.IsPlaying = true;
+                }
+
+                await _context.SaveChangesAsync();
+                return true;
+            }
+        }
+        catch
+        {
+            // Fallback a memoria
         }
 
-        await _context.SaveChangesAsync();
-        return true;
+        if (_inMemoryRooms.TryGetValue(code, out var memRoom) && memRoom.IsActive)
+        {
+            song.RoomId = memRoom.Id;
+            song.Order = memRoom.Queue.Count + 1;
+            memRoom.Queue.Add(song);
+
+            if (string.IsNullOrEmpty(memRoom.CurrentSongUrl))
+            {
+                memRoom.CurrentSongId = song.SongId;
+                memRoom.CurrentSongTitle = song.Title;
+                memRoom.CurrentSongArtist = song.Artist;
+                memRoom.CurrentSongUrl = song.Url;
+                memRoom.CurrentTimeMs = 0;
+                memRoom.IsPlaying = true;
+            }
+            return true;
+        }
+
+        return false;
     }
 
     public async Task<bool> RemoveSongFromQueueAsync(string code, Guid roomSongId)
     {
-        var song = await _context.RoomSongs.FirstOrDefaultAsync(s => s.Id == roomSongId);
-        if (song == null) return false;
+        try
+        {
+            var song = await _context.RoomSongs.FirstOrDefaultAsync(s => s.Id == roomSongId);
+            if (song != null)
+            {
+                _context.RoomSongs.Remove(song);
+                await _context.SaveChangesAsync();
+                return true;
+            }
+        }
+        catch
+        {
+            // Fallback a memoria
+        }
 
-        _context.RoomSongs.Remove(song);
-        await _context.SaveChangesAsync();
-        return true;
+        if (_inMemoryRooms.TryGetValue(code, out var memRoom))
+        {
+            memRoom.Queue.RemoveAll(s => s.Id == roomSongId);
+            return true;
+        }
+
+        return false;
     }
 
     public async Task<bool> UpdatePlaybackStateAsync(SyncPlaybackDto syncDto)
     {
-        var room = await _context.Rooms.FirstOrDefaultAsync(r => r.Code == syncDto.RoomCode);
-        if (room == null || !room.IsActive) return false;
-
-        if (!string.IsNullOrEmpty(syncDto.SongUrl))
+        try
         {
-            room.CurrentSongId = syncDto.SongId;
-            room.CurrentSongTitle = syncDto.SongTitle;
-            room.CurrentSongArtist = syncDto.SongArtist;
-            room.CurrentSongUrl = syncDto.SongUrl;
+            var room = await _context.Rooms.FirstOrDefaultAsync(r => r.Code == syncDto.RoomCode);
+            if (room != null && room.IsActive)
+            {
+                if (!string.IsNullOrEmpty(syncDto.SongUrl))
+                {
+                    room.CurrentSongId = syncDto.SongId;
+                    room.CurrentSongTitle = syncDto.SongTitle;
+                    room.CurrentSongArtist = syncDto.SongArtist;
+                    room.CurrentSongUrl = syncDto.SongUrl;
+                }
+
+                room.CurrentTimeMs = syncDto.CurrentTimeMs;
+                room.IsPlaying = syncDto.IsPlaying;
+
+                await _context.SaveChangesAsync();
+                return true;
+            }
+        }
+        catch
+        {
+            // Fallback a memoria
         }
 
-        room.CurrentTimeMs = syncDto.CurrentTimeMs;
-        room.IsPlaying = syncDto.IsPlaying;
+        if (_inMemoryRooms.TryGetValue(syncDto.RoomCode, out var memRoom) && memRoom.IsActive)
+        {
+            if (!string.IsNullOrEmpty(syncDto.SongUrl))
+            {
+                memRoom.CurrentSongId = syncDto.SongId;
+                memRoom.CurrentSongTitle = syncDto.SongTitle;
+                memRoom.CurrentSongArtist = syncDto.SongArtist;
+                memRoom.CurrentSongUrl = syncDto.SongUrl;
+            }
 
-        await _context.SaveChangesAsync();
-        return true;
+            memRoom.CurrentTimeMs = syncDto.CurrentTimeMs;
+            memRoom.IsPlaying = syncDto.IsPlaying;
+            return true;
+        }
+
+        return false;
     }
 
     private static string GenerateRoomCode()
