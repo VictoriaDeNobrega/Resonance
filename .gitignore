@@ -30,3 +30,8 @@ Thumbs.db
 *.wav
 *.flac
 SpotiDownloader.com*/
+
+# Local AI / MCP Telemetry Cache
+.alexandria/
+wiki/
+

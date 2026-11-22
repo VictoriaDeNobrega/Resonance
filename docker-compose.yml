@@ -1,23 +1,72 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:16-alpine
     container_name: resonance_postgres
     restart: always
     environment:
-      POSTGRES_USER: resonance_user
-      POSTGRES_PASSWORD: resonance_password123
-      POSTGRES_DB: resonance_db
+      POSTGRES_USER: ${POSTGRES_USER:-resonance_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-resonance_password123}
+      POSTGRES_DB: ${POSTGRES_DB:-resonance_db}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U resonance_user -d resonance_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-resonance_user} -d ${POSTGRES_DB:-resonance_db}"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+    networks:
+      - resonance_net
+
+  api:
+    build:
+      context: ./backend/Resonance.Api
+      dockerfile: Dockerfile
+    container_name: resonance_api
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_URLS: "http://+:5000"
+      ASPNETCORE_ENVIRONMENT: "Development"
+      FrontendUrl: "${SELF_PUBLIC_URL:-https://movil.res0nance.pp.ua}"
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-resonance_db};Username=${POSTGRES_USER:-resonance_user};Password=${POSTGRES_PASSWORD:-resonance_password123}"
+      MusicServer__PrimaryUrl: "${PRIMARY_MUSIC_URL:-https://movil.res0nance.pp.ua}"
+      MusicServer__MobileUrl: "${SECONDARY_MUSIC_URL:-https://musica.res0nance.pp.ua}"
+      MusicServer__FailoverTimeoutMs: "${FAILOVER_TIMEOUT_MS:-2500}"
+      MusicServer__Username: "${SUBSONIC_USER:-Nidus}"
+      MusicServer__Password: "${SUBSONIC_PASS:-115r935m}"
+      MusicServer__ApiVersion: "1.16.1"
+      MusicServer__ClientName: "Resonance"
+      ClusterSync__NodeRole: "${NODE_ROLE:-primary}"
+      ClusterSync__SelfPublicUrl: "${SELF_PUBLIC_URL:-https://movil.res0nance.pp.ua}"
+      ClusterSync__PeerPublicUrl: "${PEER_PUBLIC_URL:-https://musica.res0nance.pp.ua}"
+      ClusterSync__FailoverTimeoutMs: "${FAILOVER_TIMEOUT_MS:-2500}"
+      ClusterSync__SyncIntervalSeconds: "${SYNC_INTERVAL_SECONDS:-15}"
+      ClusterSync__ClusterSyncKey: "${CLUSTER_SYNC_KEY:-Resonance-Cluster-Sync-2026-Key}"
+    ports:
+      - "${API_PORT:-5000}:5000"
+    networks:
+      - resonance_net
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: resonance_web
+    restart: always
+    depends_on:
+      - api
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    networks:
+      - resonance_net
 
 volumes:
   postgres_data:
+
+networks:
+  resonance_net:
+    driver: bridge
