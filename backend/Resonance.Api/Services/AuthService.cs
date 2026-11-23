@@ -143,7 +143,7 @@ public class AuthService : IAuthService
         if (!string.IsNullOrWhiteSpace(dto.NewPassword))
         {
             if (dto.NewPassword.Length < 6) return ServiceResult<UserProfileDto>.BadRequest("La nueva contraseña debe tener al menos 6 caracteres.");
-            if (!string.IsNullOrWhiteSpace(dto.CurrentPassword) &&
+            if (string.IsNullOrWhiteSpace(dto.CurrentPassword) ||
                 _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, dto.CurrentPassword) == PasswordVerificationResult.Failed)
                 return ServiceResult<UserProfileDto>.BadRequest("La contraseña actual es incorrecta.");
             user.PasswordHash = _passwordHasher.HashPassword(user, dto.NewPassword);

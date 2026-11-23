@@ -34,6 +34,7 @@ public class RoomService : IRoomService
     {
         var title = dto.Title?.Trim() ?? string.Empty;
         if (title.Length is < 3 or > 50) return ServiceResult<RoomDetailDto>.BadRequest("El título de la sala debe tener entre 3 y 50 caracteres.");
+        if (await _roomRepository.TitleExistsAsync(title, ct)) return ServiceResult<RoomDetailDto>.Conflict("Ya existe una sala activa con ese nombre.");
         var capacity = dto.MaxCapacity <= 0 ? HardMaxCapacity : dto.MaxCapacity;
         if (capacity is < 2 or > HardMaxCapacity) return ServiceResult<RoomDetailDto>.BadRequest("La capacidad máxima permitida es de 2 a 50 usuarios simultáneos.");
         var keyResult = ResolveAccessKey(dto.IsPrivate, dto.AccessKey);

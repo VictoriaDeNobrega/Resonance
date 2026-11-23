@@ -73,8 +73,8 @@ export function resolveSongStreamUrl(song, preferSecondary = failoverActivated) 
   if (!song) return '';
   const raw = song.audioUrl || song.url || '';
   if (raw) {
-    if (preferSecondary) {
-      return getFallbackStreamUrl(raw);
+    if (preferSecondary && raw.includes(PRIMARY_MUSIC_SERVER)) {
+      return raw.replace(PRIMARY_MUSIC_SERVER, SECONDARY_MUSIC_SERVER);
     }
     return raw;
   }
@@ -91,8 +91,8 @@ export function resolveCoverUrl(song, preferSecondary = failoverActivated) {
   if (!song) return '';
   const raw = song.coverImageUrl || song.coverUrl || '';
   if (raw) {
-    if (preferSecondary) {
-      return getFallbackStreamUrl(raw);
+    if (preferSecondary && raw.includes(PRIMARY_MUSIC_SERVER)) {
+      return raw.replace(PRIMARY_MUSIC_SERVER, SECONDARY_MUSIC_SERVER);
     }
     return raw;
   }

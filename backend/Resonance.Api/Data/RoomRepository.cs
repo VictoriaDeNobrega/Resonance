@@ -64,6 +64,9 @@ public class RoomRepository
         return query.FirstOrDefaultAsync(r => r.Code == normalizedCode, ct);
     }
 
+    public Task<bool> TitleExistsAsync(string title, CancellationToken ct = default) =>
+        _db.Rooms.AnyAsync(r => r.IsActive && EF.Functions.ILike(r.Title, title), ct);
+
     public Task<User?> FindUserAsync(Guid userId, bool track = false, CancellationToken ct = default)
     {
         IQueryable<User> query = track ? _db.Users : _db.Users.AsNoTracking();

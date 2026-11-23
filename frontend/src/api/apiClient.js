@@ -179,7 +179,10 @@ async function request(path, options = {}, useRootOrigin = false) {
       const candidateRes = await fetchWithTimeout(`${base}${path}`, fetchOptions, timeoutMs);
       const isNavidrome404 = candidateRes.status === 404 && (
         path.startsWith('/auth') ||
-        path.startsWith('/songs/cluster') ||
+        path.startsWith('/songs') ||
+        path.startsWith('/playlists') ||
+        path.startsWith('/communities') ||
+        path.startsWith('/rooms') ||
         path === '/health'
       );
       if ((isNavidrome404 || (candidateRes.status >= 502 && candidateRes.status <= 504)) && i < candidates.length - 1) {

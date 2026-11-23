@@ -1,9 +1,12 @@
+using System.Collections.Concurrent;
 using System.Text.Json;
 
 namespace Resonance.Api.Models;
 
 public class Room
 {
+    private static readonly ConcurrentDictionary<Guid, DateTime> LastSyncAtByRoom = new();
+
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Code { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
@@ -69,6 +72,14 @@ public class Room
 
     public void ResetSkipVoters() => SkipVoterIdsJson = "[]";
 
+    public long GetProjectedCurrentTimeMs()
+    {
+        if (!IsPlaying || !LastSyncAtByRoom.TryGetValue(Id, out var syncedAt))
+            return CurrentTimeMs;
+        var elapsedMs = (long)Math.Max(0, (DateTime.UtcNow - syncedAt).TotalMilliseconds);
+        return CurrentTimeMs + elapsedMs;
+    }
+
     public void ApplyTrack(Song? song)
     {
         CurrentSongId = song?.Id;
@@ -78,6 +89,7 @@ public class Room
         CurrentSongUrl = song?.AudioUrl;
         CurrentTimeMs = 0;
         IsPlaying = song is not null;
+        LastSyncAtByRoom[Id] = DateTime.UtcNow;
         ResetSkipVoters();
     }
 
@@ -90,6 +102,7 @@ public class Room
         CurrentSongUrl = nextSong?.Url;
         CurrentTimeMs = 0;
         IsPlaying = nextSong is not null;
+        LastSyncAtByRoom[Id] = DateTime.UtcNow;
         ResetSkipVoters();
     }
 
@@ -102,6 +115,7 @@ public class Room
         CurrentSongUrl = audioUrl;
         CurrentTimeMs = 0;
         IsPlaying = isPlaying;
+        LastSyncAtByRoom[Id] = DateTime.UtcNow;
         ResetSkipVoters();
     }
 
@@ -127,6 +141,7 @@ public class Room
 
         CurrentTimeMs = Math.Max(0, currentTimeMs);
         IsPlaying = isPlaying;
+        LastSyncAtByRoom[Id] = DateTime.UtcNow;
         if (trackChanged) ResetSkipVoters();
     }
 

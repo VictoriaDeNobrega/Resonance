@@ -152,7 +152,9 @@ export default function HomePage() {
   const handleSelectServer = (srv) => {
     setSelectedServer(srv);
     localStorage.setItem('resonance_music_server', srv);
-    setMusicFailoverState(srv === 'musica');
+    if (srv === 'movil') {
+      setMusicFailoverState(false);
+    }
     setSelectedGenre('ALL');
   };
 
@@ -218,7 +220,18 @@ export default function HomePage() {
     if (!roomPayload) return;
     const songUrl = roomPayload.currentSongUrl || roomPayload.songUrl;
     const songTitle = roomPayload.currentSongTitle || roomPayload.songTitle;
-    if (!songUrl && !songTitle) return;
+    if (!songUrl && !songTitle) {
+      if (triggerSync) {
+        setRoomSyncEvent({
+          songId: null,
+          currentTimeMs: 0,
+          isPlaying: false,
+          serverTimestampUtcMs: roomPayload.serverTimestampUtcMs || Date.now(),
+          _nonce: Date.now()
+        });
+      }
+      return;
+    }
 
     const catalogMatch = (homeData?.allSongs || []).find(
       (s) => s.id === (roomPayload.currentSongId || roomPayload.songId)
@@ -369,9 +382,12 @@ export default function HomePage() {
     const code = activeRoom.code;
     try {
       await signalrClient.leaveRoom(code);
-      await apiClient.leaveRoom(code, user.id);
     } catch {
-      // noop
+      try {
+        await apiClient.leaveRoom(code, user.id);
+      } catch {
+        // noop
+      }
     }
     setActiveRoom(null);
     setRoomSyncEvent(null);

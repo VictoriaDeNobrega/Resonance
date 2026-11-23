@@ -27,6 +27,7 @@ builder.Services.AddHttpClient("ClusterPeer", client =>
 // 3. Repositorios de Persistencia PostgreSQL (SRP — Capa Data)
 builder.Services.AddScoped<UserRepository>();
 builder.Services.AddScoped<SongRepository>();
+builder.Services.AddScoped<SubsonicCatalogRepository>();
 builder.Services.AddScoped<PlaylistRepository>();
 builder.Services.AddScoped<CommunityRepository>();
 builder.Services.AddScoped<RoomRepository>();

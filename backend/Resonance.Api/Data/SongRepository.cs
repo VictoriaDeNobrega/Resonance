@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Resonance.Api.DTOs;
 using Resonance.Api.Models;
 
 namespace Resonance.Api.Data;
@@ -13,15 +12,17 @@ public class SongRepository
         _db = db;
     }
 
-    public Task<List<Song>> GetAllWithDetailsAsync(string? server = null, CancellationToken ct = default)
+    public async Task<List<Song>> GetAllWithDetailsAsync(string? server = null, CancellationToken ct = default)
     {
         IQueryable<Song> query = _db.Songs
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(s => s.Reviews)
             .Include(s => s.FavoritedByUsers);
 
         query = ApplyServerFilter(query, server);
-        return query.ToListAsync(ct);
+        var list = await query.ToListAsync(ct);
+        return IsAllServers(server) ? DeduplicateTracks(list) : list;
     }
 
     public async Task<(List<Song> Items, int TotalCount)> SearchPagedAsync(
@@ -38,6 +39,7 @@ public class SongRepository
 
         IQueryable<Song> songQuery = _db.Songs
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(s => s.Reviews)
             .Include(s => s.FavoritedByUsers);
 
@@ -65,20 +67,31 @@ public class SongRepository
             songQuery = songQuery.Where(s => EF.Functions.ILike(s.Artist, artistPrefix));
         }
 
+        if (IsAllServers(server))
+        {
+            var allMatches = DeduplicateTracks(await songQuery.ToListAsync(ct))
+                .OrderByDescending(s => s.PlayCount)
+                .ThenBy(s => s.Title)
+                .ToList();
+            var items = allMatches.Skip((safePage - 1) * safePageSize).Take(safePageSize).ToList();
+            return (items, allMatches.Count);
+        }
+
         var totalCount = await songQuery.CountAsync(ct);
-        var items = await songQuery
+        var pagedItems = await songQuery
             .OrderByDescending(s => s.PlayCount)
             .ThenBy(s => s.Title)
             .Skip((safePage - 1) * safePageSize)
             .Take(safePageSize)
             .ToListAsync(ct);
 
-        return (items, totalCount);
+        return (pagedItems, totalCount);
     }
 
     public Task<Song?> GetByIdWithFullDetailsAsync(Guid songId, CancellationToken ct = default) =>
         _db.Songs
             .AsNoTracking()
+            .AsSplitQuery()
             .Include(s => s.Reviews.OrderByDescending(r => r.CreatedAt))
             .Include(s => s.FavoritedByUsers)
             .Include(s => s.PlaylistSongs)
@@ -89,10 +102,7 @@ public class SongRepository
     {
         IQueryable<Song> query = _db.Songs;
         if (includeRelations)
-        {
             query = query.Include(s => s.Reviews).Include(s => s.FavoritedByUsers);
-        }
-
         return query.FirstOrDefaultAsync(s => s.Id == songId, ct);
     }
 
@@ -149,13 +159,13 @@ public class SongRepository
     }
 
     public Task<List<Song>> GetUserFavoritesAsync(Guid userId, CancellationToken ct = default) =>
-        _db.UserFavoriteSongs
+        _db.Songs
             .AsNoTracking()
-            .Where(f => f.UserId == userId)
-            .OrderByDescending(f => f.CreatedAt)
-            .Include(f => f.Song).ThenInclude(s => s.Reviews)
-            .Include(f => f.Song).ThenInclude(s => s.FavoritedByUsers)
-            .Select(f => f.Song)
+            .AsSplitQuery()
+            .Include(s => s.Reviews)
+            .Include(s => s.FavoritedByUsers)
+            .Where(s => s.FavoritedByUsers.Any(f => f.UserId == userId))
+            .OrderBy(s => s.Title)
             .ToListAsync(ct);
 
     public Task<List<Review>> GetReviewsAsync(Guid songId, CancellationToken ct = default) =>
@@ -171,103 +181,31 @@ public class SongRepository
         await _db.SaveChangesAsync(ct);
     }
 
-    public async Task<(int SyncedCount, int TotalCount)> GetCatalogCountsAsync(CancellationToken ct = default)
-    {
-        var syncedCount = await _db.Songs.CountAsync(s => s.ExternalId != null, ct);
-        var totalCount = await _db.Songs.CountAsync(ct);
-        return (syncedCount, totalCount);
-    }
-
-    public Task<int> CountAsync(CancellationToken ct = default) => _db.Songs.CountAsync(ct);
-
     public Task<int> SaveChangesAsync(CancellationToken ct = default) => _db.SaveChangesAsync(ct);
+
+    private static bool IsAllServers(string? server) =>
+        string.IsNullOrWhiteSpace(server) ||
+        server.Trim().Equals("all", StringComparison.OrdinalIgnoreCase) ||
+        server.Trim().Equals("todos", StringComparison.OrdinalIgnoreCase);
+
+    private static List<Song> DeduplicateTracks(List<Song> songs) =>
+        songs
+            .OrderBy(s => s.SourceServer == "movil" ? 0 : 1)
+            .DistinctBy(s => !string.IsNullOrWhiteSpace(s.ExternalId)
+                ? s.ExternalId
+                : $"{s.Title?.Trim()}|{s.Artist?.Trim()}".ToLowerInvariant())
+            .ToList();
 
     private static IQueryable<Song> ApplyServerFilter(IQueryable<Song> query, string? server)
     {
-        if (string.IsNullOrWhiteSpace(server)) return query;
-        var norm = server.Trim().ToLowerInvariant();
-        if (norm is "all" or "todos") return query;
-
+        if (IsAllServers(server)) return query;
+        var norm = server!.Trim().ToLowerInvariant();
         var mapped = norm switch
         {
             "primary" or "movil" or "server1" or "1" => "movil",
             "secondary" or "musica" or "server2" or "2" => "musica",
             _ => norm
         };
-
         return query.Where(s => s.SourceServer == mapped);
-    }
-
-    public async Task<(int AddedCount, int UpdatedCount, int TotalCount)> UpsertSubsonicCatalogAsync(
-        List<SubsonicTrackDto> tracks,
-        string defaultUploaderName,
-        CancellationToken ct = default)
-    {
-        var addedCount = 0;
-        var updatedCount = 0;
-
-        if (tracks.Count > 0)
-        {
-            var nidusUser = await _db.Users.AsNoTracking()
-                .FirstOrDefaultAsync(u => u.Name == defaultUploaderName || u.Email == "nidus@resonance.pp.ua", ct);
-
-            var externalIds = tracks.Select(t => t.ExternalId).Distinct().ToList();
-            var existingSongs = await _db.Songs
-                .Where(s => s.ExternalId != null && externalIds.Contains(s.ExternalId))
-                .ToListAsync(ct);
-            var existingByKey = existingSongs.ToDictionary(s => (s.ExternalId!, s.SourceServer));
-
-            await using var tx = await _db.Database.BeginTransactionAsync(ct);
-
-            foreach (var track in tracks)
-            {
-                var key = (track.ExternalId, track.SourceServer);
-                if (existingByKey.TryGetValue(key, out var existing))
-                {
-                    existing.Title = track.Title;
-                    existing.Artist = track.Artist;
-                    existing.Album = track.Album;
-                    existing.Genre = track.Genre;
-                    existing.DurationInSeconds = track.DurationInSeconds;
-                    existing.AudioUrl = track.AudioUrl;
-                    existing.CoverImageUrl = track.CoverImageUrl;
-                    if (string.IsNullOrWhiteSpace(existing.Description))
-                    {
-                        existing.Description = track.Description;
-                    }
-                    updatedCount++;
-                }
-                else
-                {
-                    var newSong = new Song
-                    {
-                        Id = Guid.NewGuid(),
-                        ExternalId = track.ExternalId,
-                        SourceServer = track.SourceServer,
-                        Title = track.Title,
-                        Artist = track.Artist,
-                        Album = track.Album,
-                        Genre = track.Genre,
-                        DurationInSeconds = track.DurationInSeconds,
-                        AudioUrl = track.AudioUrl,
-                        CoverImageUrl = track.CoverImageUrl,
-                        Description = track.Description,
-                        PlayCount = track.InitialPlayCount,
-                        UploadedById = nidusUser?.Id,
-                        UploadedByName = nidusUser?.Name ?? defaultUploaderName,
-                        CreatedAt = DateTime.UtcNow
-                    };
-                    _db.Songs.Add(newSong);
-                    existingByKey[key] = newSong;
-                    addedCount++;
-                }
-            }
-
-            await _db.SaveChangesAsync(ct);
-            await tx.CommitAsync(ct);
-        }
-
-        var totalCatalog = await _db.Songs.CountAsync(ct);
-        return (addedCount, updatedCount, totalCatalog);
     }
 }

@@ -187,7 +187,7 @@ public class RoomSummaryDto
         dto.CurrentSongArtist = room.CurrentSongArtist;
         dto.CurrentSongCoverUrl = room.CurrentSongCoverUrl;
         dto.CurrentSongUrl = room.CurrentSongUrl;
-        dto.CurrentTimeMs = room.CurrentTimeMs;
+        dto.CurrentTimeMs = room.GetProjectedCurrentTimeMs();
         dto.IsPlaying = room.IsPlaying;
         dto.IsActive = room.IsActive;
         dto.ListenerCount = room.ListenerCount;
