@@ -97,10 +97,16 @@ export default function GlobalPlayerBar({
     const audio = audioRef.current;
     if (!audio || !streamUrl) return;
     if (isPlaying) {
-      audio.play().catch(() => {
-        // Políticas de autoplay del navegador pueden pausar hasta interacción
-        setIsPlaying(false);
-      });
+      const playPromise = audio.play();
+      if (playPromise && typeof playPromise.catch === 'function') {
+        playPromise.catch((err) => {
+          // Ignorar AbortError cuando cambia src/carga un nuevo stream; solo pausar si el navegador bloquea autoplay
+          if (err?.name === 'AbortError') return;
+          if (err?.name === 'NotAllowedError') {
+            setIsPlaying(false);
+          }
+        });
+      }
     } else {
       audio.pause();
     }
@@ -176,6 +182,10 @@ export default function GlobalPlayerBar({
   const handleTogglePlay = () => {
     if (!currentSong) return;
     const next = !isPlaying;
+    // Desbloquear reproducción sincrónicamente dentro del gesto del usuario (clave en navegadores móviles)
+    if (next && audioRef.current && streamUrl) {
+      audioRef.current.play().catch(() => {});
+    }
     setIsPlaying(next);
     if (activeRoom && isHostOrSolo) {
       broadcastRoomSync(next, audioRef.current?.currentTime || currentTime);
@@ -212,13 +222,6 @@ export default function GlobalPlayerBar({
           ? 'musica.res0nance.pp.ua (Secundario)'
           : 'movil.res0nance.pp.ua (Principal)';
         onNotify?.(`Conmutando stream a ${targetServer}`, 'warning');
-        if (audioRef.current) {
-          audioRef.current.src = altUrl;
-          audioRef.current.load();
-          if (isPlaying) {
-            audioRef.current.play().catch(() => {});
-          }
-        }
         return;
       }
     }
@@ -244,6 +247,7 @@ export default function GlobalPlayerBar({
         ref={audioRef}
         src={streamUrl || undefined}
         preload="metadata"
+        playsInline
         onLoadedMetadata={(e) => {
           setAudioLoading(false);
           if (Number.isFinite(e.currentTarget.duration)) {
@@ -253,7 +257,12 @@ export default function GlobalPlayerBar({
             e.currentTarget.play().catch(() => {});
           }
         }}
-        onCanPlay={() => setAudioLoading(false)}
+        onCanPlay={(e) => {
+          setAudioLoading(false);
+          if (isPlaying && e.currentTarget.paused) {
+            e.currentTarget.play().catch(() => {});
+          }
+        }}
         onTimeUpdate={(e) => {
           const sec = e.currentTarget.currentTime || 0;
           setCurrentTime(sec);
