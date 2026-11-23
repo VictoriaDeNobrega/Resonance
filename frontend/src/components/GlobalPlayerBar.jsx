@@ -61,7 +61,7 @@ export default function GlobalPlayerBar({
       return;
     }
     setUsedFallback(false);
-    const resolved = resolveSongStreamUrl(currentSong, false);
+    const resolved = resolveSongStreamUrl(currentSong);
     setStreamUrl(resolved);
     setDuration(currentSong.durationInSeconds || 0);
     setAudioLoading(Boolean(resolved));
@@ -208,7 +208,17 @@ export default function GlobalPlayerBar({
       if (altUrl && altUrl !== streamUrl) {
         setUsedFallback(true);
         setStreamUrl(altUrl);
-        onNotify?.('Conmutando stream al servidor secundario musica.res0nance.pp.ua (Failover)', 'warning');
+        const targetServer = altUrl.includes('musica.res0nance.pp.ua')
+          ? 'musica.res0nance.pp.ua (Secundario)'
+          : 'movil.res0nance.pp.ua (Principal)';
+        onNotify?.(`Conmutando stream a ${targetServer}`, 'warning');
+        if (audioRef.current) {
+          audioRef.current.src = altUrl;
+          audioRef.current.load();
+          if (isPlaying) {
+            audioRef.current.play().catch(() => {});
+          }
+        }
         return;
       }
     }
@@ -417,8 +427,8 @@ export default function GlobalPlayerBar({
             </StatusBadge>
           </button>
         ) : (
-          <StatusBadge variant={usedFallback ? 'warning' : 'neutral'} icon={Wifi}>
-            {usedFallback ? 'movil.res0nance' : 'musica.res0nance'}
+          <StatusBadge variant={streamUrl.includes('musica.res0nance.pp.ua') ? 'neutral' : 'warning'} icon={Wifi}>
+            {streamUrl.includes('musica.res0nance.pp.ua') ? 'musica.res0nance' : 'movil.res0nance'}
           </StatusBadge>
         )}
 
