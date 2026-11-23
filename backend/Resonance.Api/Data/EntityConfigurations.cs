@@ -32,6 +32,7 @@ public class SongConfiguration : IEntityTypeConfiguration<Song>
         entity.ToTable("Songs");
         entity.HasKey(s => s.Id);
         entity.Property(s => s.ExternalId).HasMaxLength(128);
+        entity.Property(s => s.SourceServer).IsRequired().HasMaxLength(32).HasDefaultValue("local");
         entity.Property(s => s.Title).IsRequired().HasMaxLength(200);
         entity.Property(s => s.Artist).IsRequired().HasMaxLength(200);
         entity.Property(s => s.Album).HasMaxLength(200).HasDefaultValue(string.Empty);
@@ -40,7 +41,8 @@ public class SongConfiguration : IEntityTypeConfiguration<Song>
         entity.Property(s => s.CoverImageUrl).HasMaxLength(1000).HasDefaultValue(string.Empty);
         entity.Property(s => s.Description).HasMaxLength(1000).HasDefaultValue(string.Empty);
         entity.Property(s => s.UploadedByName).HasMaxLength(120).HasDefaultValue("Resonance");
-        entity.HasIndex(s => s.ExternalId).IsUnique().HasFilter("\"ExternalId\" IS NOT NULL");
+        entity.HasIndex(s => new { s.ExternalId, s.SourceServer }).IsUnique().HasFilter("\"ExternalId\" IS NOT NULL");
+        entity.HasIndex(s => s.SourceServer);
         entity.HasIndex(s => s.Title);
         entity.HasIndex(s => s.Artist);
         entity.HasIndex(s => s.Genre);

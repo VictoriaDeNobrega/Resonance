@@ -13,28 +13,35 @@ public class SongRepository
         _db = db;
     }
 
-    public Task<List<Song>> GetAllWithDetailsAsync(CancellationToken ct = default) =>
-        _db.Songs
+    public Task<List<Song>> GetAllWithDetailsAsync(string? server = null, CancellationToken ct = default)
+    {
+        IQueryable<Song> query = _db.Songs
             .AsNoTracking()
             .Include(s => s.Reviews)
-            .Include(s => s.FavoritedByUsers)
-            .ToListAsync(ct);
+            .Include(s => s.FavoritedByUsers);
+
+        query = ApplyServerFilter(query, server);
+        return query.ToListAsync(ct);
+    }
 
     public async Task<(List<Song> Items, int TotalCount)> SearchPagedAsync(
         string? query,
         string? genre,
         string? artist,
+        string? server,
         int page,
         int pageSize,
         CancellationToken ct = default)
     {
         var safePage = Math.Max(1, page);
-        var safePageSize = Math.Clamp(pageSize, 1, 100);
+        var safePageSize = Math.Clamp(pageSize, 1, 2000);
 
         IQueryable<Song> songQuery = _db.Songs
             .AsNoTracking()
             .Include(s => s.Reviews)
             .Include(s => s.FavoritedByUsers);
+
+        songQuery = ApplyServerFilter(songQuery, server);
 
         if (!string.IsNullOrWhiteSpace(query))
         {
@@ -175,6 +182,22 @@ public class SongRepository
 
     public Task<int> SaveChangesAsync(CancellationToken ct = default) => _db.SaveChangesAsync(ct);
 
+    private static IQueryable<Song> ApplyServerFilter(IQueryable<Song> query, string? server)
+    {
+        if (string.IsNullOrWhiteSpace(server)) return query;
+        var norm = server.Trim().ToLowerInvariant();
+        if (norm is "all" or "todos") return query;
+
+        var mapped = norm switch
+        {
+            "primary" or "movil" or "server1" or "1" => "movil",
+            "secondary" or "musica" or "server2" or "2" => "musica",
+            _ => norm
+        };
+
+        return query.Where(s => s.SourceServer == mapped);
+    }
+
     public async Task<(int AddedCount, int UpdatedCount, int TotalCount)> UpsertSubsonicCatalogAsync(
         List<SubsonicTrackDto> tracks,
         string defaultUploaderName,
@@ -188,16 +211,18 @@ public class SongRepository
             var nidusUser = await _db.Users.AsNoTracking()
                 .FirstOrDefaultAsync(u => u.Name == defaultUploaderName || u.Email == "nidus@resonance.pp.ua", ct);
 
-            var externalIds = tracks.Select(t => t.ExternalId).ToList();
-            var existingByExternalId = await _db.Songs
+            var externalIds = tracks.Select(t => t.ExternalId).Distinct().ToList();
+            var existingSongs = await _db.Songs
                 .Where(s => s.ExternalId != null && externalIds.Contains(s.ExternalId))
-                .ToDictionaryAsync(s => s.ExternalId!, ct);
+                .ToListAsync(ct);
+            var existingByKey = existingSongs.ToDictionary(s => (s.ExternalId!, s.SourceServer));
 
             await using var tx = await _db.Database.BeginTransactionAsync(ct);
 
             foreach (var track in tracks)
             {
-                if (existingByExternalId.TryGetValue(track.ExternalId, out var existing))
+                var key = (track.ExternalId, track.SourceServer);
+                if (existingByKey.TryGetValue(key, out var existing))
                 {
                     existing.Title = track.Title;
                     existing.Artist = track.Artist;
@@ -218,6 +243,7 @@ public class SongRepository
                     {
                         Id = Guid.NewGuid(),
                         ExternalId = track.ExternalId,
+                        SourceServer = track.SourceServer,
                         Title = track.Title,
                         Artist = track.Artist,
                         Album = track.Album,
@@ -232,7 +258,7 @@ public class SongRepository
                         CreatedAt = DateTime.UtcNow
                     };
                     _db.Songs.Add(newSong);
-                    existingByExternalId[track.ExternalId] = newSong;
+                    existingByKey[key] = newSong;
                     addedCount++;
                 }
             }

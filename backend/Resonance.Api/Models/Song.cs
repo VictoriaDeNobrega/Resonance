@@ -4,6 +4,7 @@ public class Song
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public string? ExternalId { get; set; }
+    public string SourceServer { get; set; } = "local";
     public string Title { get; set; } = string.Empty;
     public string Artist { get; set; } = string.Empty;
     public string Album { get; set; } = string.Empty;

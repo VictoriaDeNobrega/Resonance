@@ -10,5 +10,6 @@ public interface ISearchService
         string? artist = null,
         string? filter = "all",
         Guid? userId = null,
+        string? server = null,
         CancellationToken ct = default);
 }

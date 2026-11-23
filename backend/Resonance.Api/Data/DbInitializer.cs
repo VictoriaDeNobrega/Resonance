@@ -20,8 +20,8 @@ public static class DbInitializer
         var users = await SeedUsersAsync(db, ct);
         var nidus = users[0];
 
-        var syncResult = await navidromeService.SyncWithMusicServerAsync("primary", ct);
-        logger.LogInformation("[DbInitializer] Sync Subsonic: {Message}", syncResult.Message);
+        var syncResult = await navidromeService.SyncWithMusicServerAsync("both", ct);
+        logger.LogInformation("[DbInitializer] Sync Subsonic (ambos servidores): {Message}", syncResult.Message);
 
         await EnsureFallbackCatalogAsync(db, navidromeService, nidus, ct);
 
@@ -97,6 +97,16 @@ public static class DbInitializer
             logger.LogInformation("[DbInitializer] Esquema completo de 14 tablas creado desde cero en PostgreSQL 16.");
             return;
         }
+
+        // Migración incremental segura para columna SourceServer e índice compuesto (ExternalId, SourceServer)
+        await db.Database.ExecuteSqlRawAsync(@"
+            ALTER TABLE ""Songs"" ADD COLUMN IF NOT EXISTS ""SourceServer"" character varying(32) NOT NULL DEFAULT 'local';
+            UPDATE ""Songs"" SET ""SourceServer"" = 'movil' WHERE ""SourceServer"" = 'local' AND ""AudioUrl"" ILIKE '%movil.res0nance.pp.ua%';
+            UPDATE ""Songs"" SET ""SourceServer"" = 'musica' WHERE ""SourceServer"" = 'local' AND ""AudioUrl"" ILIKE '%musica.res0nance.pp.ua%';
+            DROP INDEX IF EXISTS ""IX_Songs_ExternalId"";
+            CREATE UNIQUE INDEX IF NOT EXISTS ""IX_Songs_ExternalId_SourceServer"" ON ""Songs"" (""ExternalId"", ""SourceServer"") WHERE ""ExternalId"" IS NOT NULL;
+            CREATE INDEX IF NOT EXISTS ""IX_Songs_SourceServer"" ON ""Songs"" (""SourceServer"");
+        ", ct);
 
         var existingTables = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var hasRequiredColumns = false;

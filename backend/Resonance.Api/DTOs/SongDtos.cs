@@ -7,6 +7,7 @@ public class SongDto
 {
     public Guid Id { get; set; }
     public string? ExternalId { get; set; }
+    public string SourceServer { get; set; } = "local";
     public string Title { get; set; } = string.Empty;
     public string Artist { get; set; } = string.Empty;
     public string Album { get; set; } = string.Empty;
@@ -31,6 +32,7 @@ public class SongDto
         var reviewCount = song.Reviews?.Count ?? 0;
         dto.Id = song.Id;
         dto.ExternalId = song.ExternalId;
+        dto.SourceServer = song.SourceServer;
         dto.Title = song.Title;
         dto.Artist = song.Artist;
         dto.Album = song.Album;

@@ -69,6 +69,7 @@ public static class SeedDataCatalog
             {
                 Id = Guid.NewGuid(),
                 ExternalId = t.ExtId,
+                SourceServer = primaryUrl.Contains("musica.", StringComparison.OrdinalIgnoreCase) ? "musica" : "movil",
                 Title = t.Title,
                 Artist = "Calva Louise",
                 Album = "Edge of the Abyss",

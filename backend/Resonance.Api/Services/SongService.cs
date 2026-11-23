@@ -17,9 +17,9 @@ public class SongService : ISongService
         _searchService = searchService;
     }
 
-    public async Task<HomeSongsResponseDto> GetHomeSongsAsync(Guid? userId = null, CancellationToken ct = default)
+    public async Task<HomeSongsResponseDto> GetHomeSongsAsync(Guid? userId = null, string? server = null, CancellationToken ct = default)
     {
-        var dtos = (await _songRepository.GetAllWithDetailsAsync(ct)).Select(s => SongDto.FromEntity(s, userId)).ToList();
+        var dtos = (await _songRepository.GetAllWithDetailsAsync(server, ct)).Select(s => SongDto.FromEntity(s, userId)).ToList();
         var trending = dtos.OrderByDescending(s => s.PlayCount).ThenByDescending(s => s.AverageRating).Take(8).ToList();
         var recent = dtos.OrderByDescending(s => s.CreatedAt).Take(10).ToList();
 
@@ -36,15 +36,15 @@ public class SongService : ISongService
     }
 
     public Task<GlobalSearchResultDto> GlobalSearchAsync(
-        string? query, string? genre = null, string? artist = null, string? filter = "all", Guid? userId = null, CancellationToken ct = default) =>
-        _searchService.GlobalSearchAsync(query, genre, artist, filter, userId, ct);
+        string? query, string? genre = null, string? artist = null, string? filter = "all", Guid? userId = null, string? server = null, CancellationToken ct = default) =>
+        _searchService.GlobalSearchAsync(query, genre, artist, filter, userId, server, ct);
 
     public async Task<PagedSongsResultDto> SearchSongsAsync(
-        string? query, string? genre = null, string? artist = null, int page = 1, int pageSize = 20, Guid? userId = null, CancellationToken ct = default)
+        string? query, string? genre = null, string? artist = null, int page = 1, int pageSize = 500, Guid? userId = null, string? server = null, CancellationToken ct = default)
     {
         var safePage = Math.Max(1, page);
-        var safePageSize = Math.Clamp(pageSize, 1, 100);
-        var (items, totalCount) = await _songRepository.SearchPagedAsync(query, genre, artist, safePage, safePageSize, ct);
+        var safePageSize = Math.Clamp(pageSize, 1, 2000);
+        var (items, totalCount) = await _songRepository.SearchPagedAsync(query, genre, artist, server, safePage, safePageSize, ct);
         return new PagedSongsResultDto
         {
             Items = items.Select(s => SongDto.FromEntity(s, userId)).ToList(),
@@ -181,9 +181,9 @@ public class SongService : ISongService
         return ServiceResult<ReviewDto>.Created(ReviewDto.FromEntity(review));
     }
 
-    public async Task<PlaybackStatsDto> GetGlobalStatsAsync(Guid? userId = null, CancellationToken ct = default)
+    public async Task<PlaybackStatsDto> GetGlobalStatsAsync(Guid? userId = null, string? server = null, CancellationToken ct = default)
     {
-        var songs = await _songRepository.GetAllWithDetailsAsync(ct);
+        var songs = await _songRepository.GetAllWithDetailsAsync(server, ct);
         var allReviews = songs.SelectMany(s => s.Reviews).ToList();
 
         return new PlaybackStatsDto

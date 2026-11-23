@@ -30,6 +30,7 @@ export default function SongsSection({
   user,
   homeData,
   selectedGenre,
+  selectedServer = 'movil',
   loading,
   currentSong,
   isPlaying,
@@ -68,12 +69,12 @@ export default function SongsSection({
   useEffect(() => {
     if (mode === 'stats') {
       setLoadingStats(true);
-      apiClient.getGlobalStats(user?.id)
+      apiClient.getGlobalStats(user?.id, selectedServer)
         .then((data) => setStats(data))
         .catch((err) => onNotify?.(err.message, 'error'))
         .finally(() => setLoadingStats(false));
     }
-  }, [mode, user?.id, homeData]);
+  }, [mode, user?.id, selectedServer, homeData]);
 
   const filterByGenre = (list = []) => {
     if (!selectedGenre || selectedGenre === 'ALL') return list;

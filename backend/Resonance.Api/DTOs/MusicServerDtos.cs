@@ -42,6 +42,7 @@ public class MusicServerSyncResultDto
 
 public sealed record SubsonicTrackDto(
     string ExternalId,
+    string SourceServer,
     string Title,
     string Artist,
     string Album,

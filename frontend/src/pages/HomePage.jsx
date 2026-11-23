@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { apiClient, clearSession, getStoredSession, updateStoredUser } from '../api/apiClient';
 import { signalrClient } from '../api/signalrClient';
-import { resolveCoverUrl } from '../api/navidromeClient';
+import { resolveCoverUrl, setMusicFailoverState } from '../api/navidromeClient';
 import {
   FilterChips, SegmentedControl, ToastContainer, StatusBadge, CoverArtwork, formatDuration
 } from '../components/CapaZeroUI';
@@ -63,6 +63,7 @@ export default function HomePage() {
   const [user, setUser] = useState(() => getStoredSession().user);
   const [activeView, setActiveView] = useState(() => getStoredSession().user?.activeView || 'discover');
   const [selectedGenre, setSelectedGenre] = useState('ALL');
+  const [selectedServer, setSelectedServer] = useState(() => localStorage.getItem('resonance_music_server') || 'movil');
 
   // Datos de catálogo y playlists
   const [homeData, setHomeData] = useState(null);
@@ -120,7 +121,7 @@ export default function HomePage() {
     setLoadingHome(true);
     try {
       const [home, myPls] = await Promise.all([
-        apiClient.getHomeSongs(user.id),
+        apiClient.getHomeSongs(user.id, selectedServer),
         apiClient.getUserPlaylists(user.id).catch(() => [])
       ]);
       setHomeData(home);
@@ -140,13 +141,20 @@ export default function HomePage() {
         }
         return home.featuredSong || home.allSongs?.[0] || null;
       });
-      setPlayQueue((prev) => (prev.length ? prev : home.allSongs || []));
+      setPlayQueue(home.allSongs || []);
     } catch (err) {
       notify(err.message, 'error');
     } finally {
       setLoadingHome(false);
     }
-  }, [user?.id, user?.lastPlayedSongId, user?.lastPlaybackPositionMs, notify]);
+  }, [user?.id, user?.lastPlayedSongId, user?.lastPlaybackPositionMs, selectedServer, notify]);
+
+  const handleSelectServer = (srv) => {
+    setSelectedServer(srv);
+    localStorage.setItem('resonance_music_server', srv);
+    setMusicFailoverState(srv === 'musica');
+    setSelectedGenre('ALL');
+  };
 
   useEffect(() => {
     refreshCatalog();
@@ -174,7 +182,8 @@ export default function HomePage() {
         const res = await apiClient.globalSearch({
           query: q,
           filter: searchFilter,
-          userId: user?.id
+          userId: user?.id,
+          server: selectedServer
         });
         if (!cancelled) {
           setSearchResults(res);
@@ -191,7 +200,7 @@ export default function HomePage() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [searchQuery, searchFilter, user?.id]);
+  }, [searchQuery, searchFilter, user?.id, selectedServer]);
 
   // Cerrar dropdown de búsqueda al hacer clic fuera
   useEffect(() => {
@@ -810,18 +819,35 @@ export default function HomePage() {
 
         {/* CONTENIDO ACTIVO IN-SITU */}
         <div className="workspace-content">
-          {/* #30 Filter Chips de Géneros Musicales */}
-          {(activeView === 'discover' || activeView === 'catalog' || activeView === 'favorites') && (
-            <div>
-              <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: 8 }}>
-                SHORTCUTS · GÉNEROS
+          {/* #30 Filter Chips de Géneros Musicales + Selector de Servidor (1 / 2) */}
+          {(activeView === 'discover' || activeView === 'catalog' || activeView === 'favorites' || activeView === 'stats') && (
+            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+              <div style={{ flex: '1 1 320px', minWidth: 0 }}>
+                <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: 8 }}>
+                  SHORTCUTS · GÉNEROS
+                </div>
+                <FilterChips
+                  options={homeData?.genres || []}
+                  selected={selectedGenre}
+                  onSelect={setSelectedGenre}
+                  allLabel="Todos"
+                />
               </div>
-              <FilterChips
-                options={homeData?.genres || []}
-                selected={selectedGenre}
-                onSelect={setSelectedGenre}
-                allLabel="Todos"
-              />
+
+              <div>
+                <div style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: 8 }}>
+                  SERVIDOR DE CANCIONES
+                </div>
+                <SegmentedControl
+                  value={selectedServer}
+                  onChange={handleSelectServer}
+                  options={[
+                    { value: 'movil', label: 'Servidor 1 (Móvil)' },
+                    { value: 'musica', label: 'Servidor 2 (Música)' },
+                    { value: 'all', label: 'Todos' }
+                  ]}
+                />
+              </div>
             </div>
           )}
 
@@ -831,6 +857,7 @@ export default function HomePage() {
               user={user}
               homeData={homeData}
               selectedGenre={selectedGenre}
+              selectedServer={selectedServer}
               loading={loadingHome}
               currentSong={currentSong}
               isPlaying={isPlaying}

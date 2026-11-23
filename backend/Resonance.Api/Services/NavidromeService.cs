@@ -85,22 +85,25 @@ public class NavidromeService : INavidromeService
             if (normalized is "mobile" or "secondary")
             {
                 sourceUsed = _mobileUrl;
-                fetched = await FetchCatalogAsync(_mobileUrl, 100, cleanArtistsOnly: false, ct);
+                fetched = await FetchCatalogAsync(_mobileUrl, cleanArtistsOnly: false, ct);
             }
             else if (normalized == "both")
             {
-                var primaryTracks = await FetchWithTimeoutAsync(_primaryUrl, 100, cleanArtistsOnly: true, ct);
-                var secondaryTracks = await FetchCatalogAsync(_mobileUrl, 100, cleanArtistsOnly: false, ct);
-                fetched = primaryTracks.Concat(secondaryTracks).DistinctBy(t => t.ExternalId).ToList();
+                var primaryTask = FetchWithTimeoutAsync(_primaryUrl, cleanArtistsOnly: true, ct);
+                var secondaryTask = FetchCatalogAsync(_mobileUrl, cleanArtistsOnly: false, ct);
+                await Task.WhenAll(primaryTask, secondaryTask);
+                fetched = primaryTask.Result.Concat(secondaryTask.Result)
+                    .DistinctBy(t => (t.ExternalId, t.SourceServer))
+                    .ToList();
                 sourceUsed = $"{_primaryUrl} + {_mobileUrl}";
             }
             else
             {
-                fetched = await FetchWithTimeoutAsync(_primaryUrl, 100, cleanArtistsOnly: true, ct);
+                fetched = await FetchWithTimeoutAsync(_primaryUrl, cleanArtistsOnly: true, ct);
                 if (fetched.Count == 0)
                 {
                     _logger.LogWarning("Servidor principal {PrimaryUrl} sin pistas o excedió {Timeout}ms; conmutando al secundario {MobileUrl}.", _primaryUrl, _failoverTimeoutMs, _mobileUrl);
-                    fetched = await FetchCatalogAsync(_mobileUrl, 100, cleanArtistsOnly: false, ct);
+                    fetched = await FetchCatalogAsync(_mobileUrl, cleanArtistsOnly: false, ct);
                     usedFallback = true;
                     sourceUsed = _mobileUrl;
                 }
@@ -111,7 +114,7 @@ public class NavidromeService : INavidromeService
             _logger.LogWarning(ex, "Timeout/Fallo en servidor principal {PrimaryUrl} (>{Timeout}ms); activando failover a {MobileUrl}.", _primaryUrl, _failoverTimeoutMs, _mobileUrl);
             try
             {
-                fetched = await FetchCatalogAsync(_mobileUrl, 100, cleanArtistsOnly: false, ct);
+                fetched = await FetchCatalogAsync(_mobileUrl, cleanArtistsOnly: false, ct);
                 usedFallback = true;
                 sourceUsed = _mobileUrl;
             }
@@ -180,23 +183,66 @@ public class NavidromeService : INavidromeService
         }
     }
 
-    private async Task<List<SubsonicTrackDto>> FetchWithTimeoutAsync(string baseUrl, int maxSongs, bool cleanArtistsOnly, CancellationToken ct)
+    private async Task<List<SubsonicTrackDto>> FetchWithTimeoutAsync(string baseUrl, bool cleanArtistsOnly, CancellationToken ct)
     {
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        timeoutCts.CancelAfter(_failoverTimeoutMs);
-        return await FetchCatalogAsync(baseUrl, maxSongs, cleanArtistsOnly, timeoutCts.Token);
+        timeoutCts.CancelAfter(_failoverTimeoutMs * 2);
+        try
+        {
+            return await FetchCatalogAsync(baseUrl, cleanArtistsOnly, timeoutCts.Token);
+        }
+        catch
+        {
+            return new List<SubsonicTrackDto>();
+        }
     }
 
-    public async Task<List<SubsonicTrackDto>> FetchCatalogAsync(string baseUrl, int maxSongs = 100, bool cleanArtistsOnly = false, CancellationToken ct = default)
+    public async Task<List<SubsonicTrackDto>> FetchCatalogAsync(string baseUrl, int maxSongs = 5000, bool cleanArtistsOnly = false, CancellationToken ct = default)
+        => await FetchCatalogAsync(baseUrl, cleanArtistsOnly, ct);
+
+    private async Task<List<SubsonicTrackDto>> FetchCatalogAsync(string baseUrl, bool cleanArtistsOnly, CancellationToken ct)
     {
         var client = _httpClientFactory.CreateClient("Subsonic");
         var auth = BuildAuthQuery(true);
-        var tracks = await FetchEndpointAsync(client, baseUrl, $"{baseUrl}/rest/search3.view?query=&songCount={maxSongs}&{auth}", "searchResult3", cleanArtistsOnly, ct);
-        return tracks.Count > 0 ? tracks : await FetchEndpointAsync(client, baseUrl, $"{baseUrl}/rest/getRandomSongs.view?size={maxSongs}&{auth}", "randomSongs", cleanArtistsOnly, ct);
+        var allTracks = new List<SubsonicTrackDto>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        const int pageSize = 500;
+
+        for (var page = 0; page < 20; page++)
+        {
+            var offset = page * pageSize;
+            var batch = await FetchEndpointAsync(
+                client,
+                baseUrl,
+                $"{baseUrl}/rest/search3.view?query=&songCount={pageSize}&songOffset={offset}&{auth}",
+                "searchResult3",
+                cleanArtistsOnly,
+                seen,
+                allTracks.Count,
+                ct);
+
+            allTracks.AddRange(batch);
+            if (batch.Count < pageSize) break;
+        }
+
+        if (allTracks.Count == 0)
+        {
+            allTracks = await FetchEndpointAsync(
+                client,
+                baseUrl,
+                $"{baseUrl}/rest/getRandomSongs.view?size=500&{auth}",
+                "randomSongs",
+                cleanArtistsOnly,
+                seen,
+                0,
+                ct);
+        }
+
+        return allTracks;
     }
 
     private async Task<List<SubsonicTrackDto>> FetchEndpointAsync(
-        HttpClient client, string baseUrl, string requestUrl, string containerProp, bool cleanArtistsOnly, CancellationToken ct)
+        HttpClient client, string baseUrl, string requestUrl, string containerProp, bool cleanArtistsOnly, HashSet<string> seen, int baseIndex, CancellationToken ct)
     {
         var result = new List<SubsonicTrackDto>();
         using var response = await client.GetAsync(requestUrl, ct);
@@ -211,8 +257,8 @@ public class NavidromeService : INavidromeService
             return result;
 
         var streamAuth = BuildAuthQuery(false);
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        var idx = 0;
+        var sourceServer = ResolveSourceServerName(baseUrl);
+        var idx = baseIndex;
 
         foreach (var item in songArray.EnumerateArray())
         {
@@ -231,15 +277,18 @@ public class NavidromeService : INavidromeService
             var coverArt = GetString(item, "coverArt")?.Trim() ?? id;
 
             result.Add(new SubsonicTrackDto(
-                id, title, artist, album, InferGenre(GetString(item, "genre"), artist, album, title), duration,
+                id, sourceServer, title, artist, album, InferGenre(GetString(item, "genre"), artist, album, title), duration,
                 $"{baseUrl}/rest/stream.view?id={Uri.EscapeDataString(id)}&{streamAuth}",
                 !string.IsNullOrWhiteSpace(coverArt) ? $"{baseUrl}/rest/getCoverArt.view?id={Uri.EscapeDataString(coverArt)}&size=600&{streamAuth}" : string.Empty,
                 $"Pista sincronizada en alta fidelidad desde {baseUrl} — Álbum: {album}.",
-                Math.Max(12, 95 - (idx++ * 6))));
+                Math.Max(12, 95 - (idx++ * 2))));
         }
 
         return result;
     }
+
+    private static string ResolveSourceServerName(string baseUrl) =>
+        baseUrl.Contains("musica.", StringComparison.OrdinalIgnoreCase) ? "musica" : "movil";
 
     private static MusicServerEndpointStatusDto OfflineStatus(string name, string baseUrl, long latencyMs, string error) =>
         new() { Name = name, BaseUrl = baseUrl, IsOnline = false, LatencyMs = latencyMs, Error = error };

@@ -28,6 +28,7 @@ public class SearchService : ISearchService
         string? artist = null,
         string? filter = "all",
         Guid? userId = null,
+        string? server = null,
         CancellationToken ct = default)
     {
         var normalizedQuery = query?.Trim() ?? string.Empty;
@@ -39,15 +40,16 @@ public class SearchService : ISearchService
             Filter = normalizedFilter
         };
 
-        // 1. Canciones (búsqueda por prefijo + filtros opcionales género/artista — HU 1.3)
+        // 1. Canciones (búsqueda por prefijo + filtros opcionales género/artista/servidor — HU 1.3)
         if (normalizedFilter is "all" or "songs")
         {
             var (matchingSongs, _) = await _songRepository.SearchPagedAsync(
                 normalizedQuery,
                 genre,
                 artist,
+                server,
                 page: 1,
-                pageSize: 30,
+                pageSize: 50,
                 ct);
 
             result.Songs = matchingSongs

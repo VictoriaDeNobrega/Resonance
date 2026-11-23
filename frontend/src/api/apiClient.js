@@ -248,12 +248,12 @@ export const apiClient = {
     request(`/auth/users/search${buildQuery({ query, limit })}`, { method: 'GET' }),
 
   // ==================== SONGS, STATS, SEARCH & SUBSONIC (/api/songs) ====================
-  getHomeSongs: (userId) => request(`/songs/home${buildQuery({ userId })}`, { method: 'GET' }),
-  globalSearch: ({ query = '', genre, artist, filter = 'all', userId } = {}) =>
-    request(`/songs/global-search${buildQuery({ query, genre, artist, filter, userId })}`, { method: 'GET' }),
-  searchSongs: ({ query, genre, artist, page = 1, pageSize = 20, userId } = {}) =>
-    request(`/songs/search${buildQuery({ query, genre, artist, page, pageSize, userId })}`, { method: 'GET' }),
-  getGlobalStats: (userId) => request(`/songs/stats${buildQuery({ userId })}`, { method: 'GET' }),
+  getHomeSongs: (userId, server) => request(`/songs/home${buildQuery({ userId, server })}`, { method: 'GET' }),
+  globalSearch: ({ query = '', genre, artist, filter = 'all', userId, server } = {}) =>
+    request(`/songs/global-search${buildQuery({ query, genre, artist, filter, userId, server })}`, { method: 'GET' }),
+  searchSongs: ({ query, genre, artist, page = 1, pageSize = 500, userId, server } = {}) =>
+    request(`/songs/search${buildQuery({ query, genre, artist, page, pageSize, userId, server })}`, { method: 'GET' }),
+  getGlobalStats: (userId, server) => request(`/songs/stats${buildQuery({ userId, server })}`, { method: 'GET' }),
   getServerStatus: () => request('/songs/server-status', { method: 'GET' }),
   syncMusicServer: (source = 'primary') =>
     request(`/songs/sync-server${buildQuery({ source })}`, { method: 'POST' }),

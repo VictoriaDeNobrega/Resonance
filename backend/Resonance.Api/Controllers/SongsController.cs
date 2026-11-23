@@ -22,14 +22,15 @@ public class SongsController : ApiControllerBase
         [FromQuery] string? genre = null,
         [FromQuery] string? artist = null,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 50,
+        [FromQuery] int pageSize = 500,
         [FromQuery] Guid? userId = null,
+        [FromQuery] string? server = null,
         CancellationToken ct = default) =>
-        Ok(await _songService.SearchSongsAsync(query, genre, artist, page, pageSize, userId, ct));
+        Ok(await _songService.SearchSongsAsync(query, genre, artist, page, pageSize, userId, server, ct));
 
     [HttpGet("home")]
-    public async Task<IActionResult> GetHome([FromQuery] Guid? userId = null, CancellationToken ct = default) =>
-        Ok(await _songService.GetHomeSongsAsync(userId, ct));
+    public async Task<IActionResult> GetHome([FromQuery] Guid? userId = null, [FromQuery] string? server = null, CancellationToken ct = default) =>
+        Ok(await _songService.GetHomeSongsAsync(userId, server, ct));
 
     [HttpGet("global-search")]
     public async Task<IActionResult> GlobalSearch(
@@ -38,8 +39,9 @@ public class SongsController : ApiControllerBase
         [FromQuery] string? artist = null,
         [FromQuery] string? filter = "all",
         [FromQuery] Guid? userId = null,
+        [FromQuery] string? server = null,
         CancellationToken ct = default) =>
-        Ok(await _songService.GlobalSearchAsync(query, genre, artist, filter, userId, ct));
+        Ok(await _songService.GlobalSearchAsync(query, genre, artist, filter, userId, server, ct));
 
     [HttpGet("search")]
     public async Task<IActionResult> SearchSongs(
@@ -47,14 +49,15 @@ public class SongsController : ApiControllerBase
         [FromQuery] string? genre = null,
         [FromQuery] string? artist = null,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20,
+        [FromQuery] int pageSize = 500,
         [FromQuery] Guid? userId = null,
+        [FromQuery] string? server = null,
         CancellationToken ct = default) =>
-        Ok(await _songService.SearchSongsAsync(query, genre, artist, page, pageSize, userId, ct));
+        Ok(await _songService.SearchSongsAsync(query, genre, artist, page, pageSize, userId, server, ct));
 
     [HttpGet("stats")]
-    public async Task<IActionResult> GetGlobalStats([FromQuery] Guid? userId = null, CancellationToken ct = default) =>
-        Ok(await _songService.GetGlobalStatsAsync(userId, ct));
+    public async Task<IActionResult> GetGlobalStats([FromQuery] Guid? userId = null, [FromQuery] string? server = null, CancellationToken ct = default) =>
+        Ok(await _songService.GetGlobalStatsAsync(userId, server, ct));
 
     [HttpGet("server-status")]
     public async Task<IActionResult> GetServerStatus(CancellationToken ct = default) =>
