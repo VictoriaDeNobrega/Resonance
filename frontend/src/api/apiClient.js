@@ -18,10 +18,13 @@ function detectInitialApiBase() {
   }
   if (typeof window !== 'undefined') {
     const host = window.location.hostname;
+    if (host === 'localhost' || host === '127.0.0.1' || window.location.port === '8080') {
+      return `${window.location.origin}/api`;
+    }
     if (host.includes('res0nance.pp.ua')) {
       return PRIMARY_NODE_API;
     }
-    if (window.location.port === '8080' || window.location.port === '80' || window.location.port === '443') {
+    if (window.location.port === '80' || window.location.port === '443') {
       return `${window.location.origin}/api`;
     }
   }
@@ -174,8 +177,13 @@ async function request(path, options = {}, useRootOrigin = false) {
 
     try {
       const candidateRes = await fetchWithTimeout(`${base}${path}`, fetchOptions, timeoutMs);
-      if (candidateRes.status >= 502 && candidateRes.status <= 504 && i < candidates.length - 1) {
-        lastError = new Error(`Servidor ${base} respondió HTTP ${candidateRes.status}`);
+      const isNavidrome404 = candidateRes.status === 404 && (
+        path.startsWith('/auth') ||
+        path.startsWith('/songs/cluster') ||
+        path === '/health'
+      );
+      if ((isNavidrome404 || (candidateRes.status >= 502 && candidateRes.status <= 504)) && i < candidates.length - 1) {
+        lastError = new Error(`Servidor ${base} no tiene la API de Resonance disponible (HTTP ${candidateRes.status})`);
         continue;
       }
 

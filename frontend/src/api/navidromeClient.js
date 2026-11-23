@@ -57,27 +57,27 @@ export function buildCoverArtUrl(coverId, size = 600, host = activeMusicServer) 
 
 export function rewriteToActiveMusicServer(url, forceSecondary = failoverActivated) {
   if (!url) return '';
-  const targetHost = forceSecondary ? SECONDARY_MUSIC_SERVER : activeMusicServer;
-  if (url.includes(PRIMARY_MUSIC_SERVER) && targetHost !== PRIMARY_MUSIC_SERVER) {
-    return url.replace(PRIMARY_MUSIC_SERVER, targetHost);
+  // Si se solicita failover forzado hacia el secundario
+  if (forceSecondary && url.includes(PRIMARY_MUSIC_SERVER)) {
+    return url.replace(PRIMARY_MUSIC_SERVER, SECONDARY_MUSIC_SERVER);
   }
-  if (url.includes(SECONDARY_MUSIC_SERVER) && targetHost !== SECONDARY_MUSIC_SERVER) {
-    return url.replace(SECONDARY_MUSIC_SERVER, targetHost);
-  }
+  // Si la pista ya contiene un host válido de Subsonic, no sobreescribirla
   return url;
 }
 
 /**
- * Resuelve la URL efectiva de streaming priorizando el Servidor Principal (movil.res0nance.pp.ua)
- * y conmutando automáticamente al Secundario (musica.res0nance.pp.ua) si el failover está activo.
+ * Resuelve la URL efectiva de streaming priorizando el origen nativo de la pista
+ * y conmutando automáticamente al secundario/alternativo si el failover está activo.
  */
 export function resolveSongStreamUrl(song, preferSecondary = failoverActivated) {
   if (!song) return '';
   const raw = song.audioUrl || song.url || '';
-  if (preferSecondary && raw) {
-    return getFallbackStreamUrl(raw);
+  if (raw) {
+    if (preferSecondary) {
+      return getFallbackStreamUrl(raw);
+    }
+    return raw;
   }
-  if (raw) return rewriteToActiveMusicServer(raw, preferSecondary);
   if (song.externalId) {
     return buildStreamUrl(song.externalId, preferSecondary ? SECONDARY_MUSIC_SERVER : PRIMARY_MUSIC_SERVER);
   }
@@ -90,10 +90,12 @@ export function resolveSongStreamUrl(song, preferSecondary = failoverActivated) 
 export function resolveCoverUrl(song, preferSecondary = failoverActivated) {
   if (!song) return '';
   const raw = song.coverImageUrl || song.coverUrl || '';
-  if (preferSecondary && raw) {
-    return getFallbackStreamUrl(raw);
+  if (raw) {
+    if (preferSecondary) {
+      return getFallbackStreamUrl(raw);
+    }
+    return raw;
   }
-  if (raw) return rewriteToActiveMusicServer(raw, preferSecondary);
   if (song.externalId) {
     return buildCoverArtUrl(song.externalId, 600, preferSecondary ? SECONDARY_MUSIC_SERVER : PRIMARY_MUSIC_SERVER);
   }
