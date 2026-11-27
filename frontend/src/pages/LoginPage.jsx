@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LogIn, UserPlus, KeyRound, Mail, Lock, User, AlertCircle,
@@ -36,6 +36,27 @@ export default function LoginPage() {
   const [registerForm, setRegisterForm] = useState({ name: '', email: '', password: '', bio: '' });
   const [confirmForm, setConfirmForm] = useState({ email: '', token: '' });
   const [issuedTokenInfo, setIssuedTokenInfo] = useState(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const urlToken = params.get('confirmToken');
+    const urlEmail = params.get('email') || '';
+    if (!urlToken) return;
+
+    setMode('confirm');
+    setConfirmForm({ email: urlEmail, token: urlToken });
+    setLoading(true);
+    apiClient.confirmAccount({ email: urlEmail || null, token: urlToken })
+      .then(() => {
+        setMode('login');
+        setLoginForm((prev) => ({ ...prev, email: urlEmail || prev.email }));
+        setBanner({ type: 'success', message: '¡Cuenta confirmada desde tu correo! Ya puedes iniciar sesión.' });
+      })
+      .catch((err) => {
+        setBanner({ type: 'error', message: err.message });
+      })
+      .finally(() => setLoading(false));
+  }, [location.search]);
 
   const switchMode = (nextMode) => {
     setMode(nextMode);
